@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>O-1A Visa Assessment - Async Client Example</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .container {
+        border: 1px solid #ddd;
+        padding: 20px;
+        border-radius: 5px;
+      }
+      .status {
+        margin-top: 20px;
+        padding: 10px;
+        border-radius: 5px;
+        display: none;
+      }
+      .processing {
+        background-color: #fff3cd;
+        border: 1px solid #ffeeba;
+        display: block;
+      }
+      .success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        display: block;
+      }
+      .error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        display: block;
+      }
+      #result {
+        margin-top: 20px;
+        white-space: pre-wrap;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        display: none;
+      }
+      button {
+        padding: 10px 15px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      button:disabled {
+        background-color: #6c757d;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>O-1A Visa Assessment - Async Client Example</h1>
+    <div class="container">
+      <form id="uploadForm">
+        <div>
+          <label for="cvFile">Upload your CV (PDF, DOCX, or TXT):</label>
+          <input
+            type="file"
+            id="cvFile"
+            name="cv_file"
+            accept=".pdf,.docx,.txt"
+            required
+          />
+        </div>
+        <div style="margin-top: 20px">
+          <button type="submit" id="submitBtn">Submit for Assessment</button>
+        </div>
+      </form>
+
+      <div id="statusBox" class="status">
+        <p id="statusMessage">Processing your document...</p>
+        <div id="progressContainer" style="display: none">
+          <p>This may take a few minutes. Please wait...</p>
+          <progress id="progressBar" value="0" max="100"></progress>
+        </div>
+      </div>
+
+      <pre id="result"></pre>
+    </div>
+
+    <script>
+      const API_URL = window.location.origin; // Assumes the API is on the same domain
+      let requestId = null;
+      let pollingInterval = null;
+
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const fileInput = document.getElementById("cvFile");
+          if (!fileInput.files.length) {
+            alert("Please select a file to upload");
+            return;
+          }
+
+          const file = fileInput.files[0];
+          const formData = new FormData();
+          formData.append("cv_file", file);
+
+          // Update UI
+          document.getElementById("submitBtn").disabled = true;
+          const statusBox = document.getElementById("statusBox");
+          statusBox.className = "status processing";
+          statusBox.style.display = "block";
+          document.getElementById("statusMessage").textContent =
+            "Uploading your document...";
+          document.getElementById("result").style.display = "none";
+
+          try {
+            // Submit the file
+            const response = await fetch(`${API_URL}/assess`, {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error(
+                `Server responded with ${response.status}: ${response.statusText}`
+              );
+            }
+
+            const data = await response.json();
+            requestId = data.request_id;
+
+            // Start polling for results
+            document.getElementById("statusMessage").textContent =
+              "Processing your document...";
+            document.getElementById("progressContainer").style.display =
+              "block";
+            startPolling();
+          } catch (error) {
+            console.error("Error:", error);
+            statusBox.className = "status error";
+            document.getElementById(
+              "statusMessage"
+            ).textContent = `Error: ${error.message}`;
+            document.getElementById("submitBtn").disabled = false;
+            document.getElementById("progressContainer").style.display = "none";
+          }
+        });
+
+      function startPolling() {
+        let progress = 0;
+        const progressBar = document.getElementById("progressBar");
+
+        // Update progress bar animation
+        const progressInterval = setInterval(() => {
+          // Slow down progress as it gets higher
+          const increment = progress < 70 ? 5 : progress < 90 ? 2 : 0.5;
+          progress = Math.min(progress + increment, 99);
+          progressBar.value = progress;
+        }, 1000);
+
+        // Poll for status
+        pollingInterval = setInterval(async () => {
+          try {
+            const response = await fetch(
+              `${API_URL}/assess/status/${requestId}`
+            );
+            if (!response.ok) {
+              throw new Error(
+                `Server responded with ${response.status}: ${response.statusText}`
+              );
+            }
+
+            const data = await response.json();
+
+            if (data.status === "completed") {
+              clearInterval(pollingInterval);
+              clearInterval(progressInterval);
+              displayResults(data.result);
+            } else if (data.status === "error") {
+              clearInterval(pollingInterval);
+              clearInterval(progressInterval);
+              displayError(data.error);
+            }
+            // Continue polling if still processing
+          } catch (error) {
+            console.error("Polling error:", error);
+            clearInterval(pollingInterval);
+            clearInterval(progressInterval);
+            displayError(error.message);
+          }
+        }, 2000); // Poll every 2 seconds
+      }
+
+      function displayResults(result) {
+        const statusBox = document.getElementById("statusBox");
+        statusBox.className = "status success";
+        document.getElementById("statusMessage").textContent =
+          "Assessment completed!";
+        document.getElementById("progressContainer").style.display = "none";
+
+        // Display the formatted result
+        const resultElement = document.getElementById("result");
+        resultElement.textContent = JSON.stringify(result, null, 2);
+        resultElement.style.display = "block";
+
+        document.getElementById("submitBtn").disabled = false;
+      }
+
+      function displayError(errorMessage) {
+        const statusBox = document.getElementById("statusBox");
+        statusBox.className = "status error";
+        document.getElementById(
+          "statusMessage"
+        ).textContent = `Error: ${errorMessage}`;
+        document.getElementById("progressContainer").style.display = "none";
+        document.getElementById("submitBtn").disabled = false;
+      }
+    </script>
+  </body>
+</html>
