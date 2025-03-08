@@ -36,7 +36,7 @@ The system uses a combination of:
 
 ## Features
 
-- Analyzes CVs in PDF, DOCX, or TXT format
+- Analyzes CVs in TXT format main, but also DOCX and PDF (untested)
 - Evaluates against all 8 O-1A criteria:
   - Awards
   - Membership
@@ -51,7 +51,7 @@ The system uses a combination of:
   - Confidence score for each criterion
   - Overall qualification rating (low, medium, high)
   - Explanation of the assessment
-- **Multilingual Support**: Capable of analyzing CVs in multiple languages thanks to Qwen2.5-0.5B's strong multilingual capabilities
+- **Multilingual Support**: Capable of analyzing CVs in multiple languages thanks to Qwen2.5-0.5B's and BGE's strong multilingual capabilities
 
 ## Key Enhancements
 
@@ -62,6 +62,7 @@ The system has been enhanced to:
 2. **Direct Evidence Extraction**: The system directly extracts evidence for each criterion from the CV before falling back to LLM analysis, improving accuracy and reducing hallucinations.
 
 3. **Specialized Criteria Handling**:
+
    - **Critical Employment**: Identifies STEM, government, military, and leadership positions with specialized keyword matching
    - **High Remuneration**: Detects salary information with specific thresholds ($150,000 to $350,000 for medium confidence, >$350,000 for high confidence)
 
