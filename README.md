@@ -150,6 +150,7 @@ Qwen2.5-0.5B is one of the smallest yet capable language models available. It pr
 - Low memory requirements
 - Sufficient reasoning capabilities for CV analysis
 - Good performance on text analysis tasks
+- Strong multilingual capabilities, supporting analysis of CVs in multiple languages
 
 This makes it ideal for a responsive API that needs to analyze documents efficiently.
 
