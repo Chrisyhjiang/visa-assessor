@@ -55,7 +55,7 @@ PUBLICATIONS & PATENTS
 Selected Publications (out of 23 total):
 1. Rodriguez, M., et al. "Efficient Few-Shot Learning for Medical Image Analysis." Nature Machine Intelligence, 2022.
 2. Rodriguez, M., et al. "Multilingual Capabilities in Large Language Models." Proceedings of ACL, 2021.
-3. Rodriguez, M., et al. "Optimization Techniques for Transformer Models." NeurIPS, 2019.
+3. Rodriguez, M., et al. "OptimizaMARIAtion Techniques for Transformer Models." NeurIPS, 2019.
 4. Rodriguez, M., Chen, J. "Transfer Learning Approaches for NLP." ICML, 2017. (Best Paper Award)
 
 Patents:

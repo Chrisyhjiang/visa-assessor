@@ -44,20 +44,47 @@ class RAGService:
             if not sentence_transformers_available:
                 raise ImportError("sentence_transformers package is required but not available")
             
-            # Initialize text_splitter before using it
+            # Initialize text_splitter with smaller chunks for more precise retrieval
             self.text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
+                chunk_size=800,  # Smaller chunks for more precise retrieval
+                chunk_overlap=150,
                 length_function=len,
             )
             
-            # Initialize embeddings
+            # Initialize embeddings with a better model if available
+            model_options = [
+                "BAAI/bge-large-en-v1.5",  # Try larger model first
+                "BAAI/bge-base-en-v1.5",   # Medium model
+                "BAAI/bge-small-en-v1.5",  # Updated small model
+                "BAAI/bge-small-en"        # Original small model as fallback
+            ]
+            
+            model_name = None
+            for option in model_options:
+                try:
+                    logger.info(f"Attempting to load embedding model: {option}")
+                    # Just test if the model can be loaded
+                    from sentence_transformers import SentenceTransformer
+                    _ = SentenceTransformer(option)
+                    model_name = option
+                    logger.info(f"Successfully loaded embedding model: {option}")
+                    break
+                except Exception as e:
+                    logger.warning(f"Failed to load embedding model {option}: {str(e)}")
+            
+            if not model_name:
+                model_name = "BAAI/bge-small-en"  # Default fallback
+                logger.warning(f"Using fallback embedding model: {model_name}")
+            
             self.embeddings = HuggingFaceBgeEmbeddings(
-                model_name="BAAI/bge-small-en"
+                model_name=model_name
             )
             
             # Initialize vector store
             self.vector_store = self._initialize_vector_store(knowledge_base_dir)
+            
+            # Cache for query results to avoid redundant processing
+            self.query_cache = {}
             
             logger.info("RAG service initialized successfully")
         except Exception as e:
@@ -80,18 +107,32 @@ class RAGService:
         for filename in os.listdir(knowledge_base_dir):
             if filename.endswith(".txt"):
                 file_path = os.path.join(knowledge_base_dir, filename)
-                with open(file_path, "r") as f:
-                    content = f.read()
-                    # Extract criterion name from filename (e.g., "awards.txt" -> "Awards")
-                    criterion = os.path.splitext(filename)[0].capitalize()
-                    doc = Document(
-                        page_content=content,
-                        metadata={"criterion": criterion}
-                    )
-                    documents.append(doc)
+                try:
+                    with open(file_path, "r") as f:
+                        content = f.read()
+                        # Extract criterion name from filename (e.g., "awards.txt" -> "Awards")
+                        criterion = os.path.splitext(filename)[0].capitalize()
+                        
+                        # Add the criterion name to the content for better retrieval
+                        enhanced_content = f"O-1A Visa Criterion: {criterion}\n\n{content}"
+                        
+                        doc = Document(
+                            page_content=enhanced_content,
+                            metadata={"criterion": criterion, "source": file_path}
+                        )
+                        documents.append(doc)
+                        logger.info(f"Loaded knowledge base document: {filename}")
+                except Exception as e:
+                    logger.error(f"Error loading knowledge base document {filename}: {str(e)}")
+        
+        if not documents:
+            logger.warning(f"No knowledge base documents found in {knowledge_base_dir}")
+            # Create a minimal document to avoid errors
+            documents = [Document(page_content="No knowledge base documents found.", metadata={"criterion": "Unknown"})]
         
         # Split documents into chunks
         chunks = self.text_splitter.split_documents(documents)
+        logger.info(f"Created {len(chunks)} chunks from {len(documents)} documents")
         
         # Create vector store
         return FAISS.from_documents(chunks, self.embeddings)
@@ -107,16 +148,36 @@ class RAGService:
         Returns:
             List of relevant documents with metadata
         """
-        results = self.vector_store.similarity_search_with_score(query, k=top_k)
+        # Check cache first
+        cache_key = f"{query}_{top_k}"
+        if cache_key in self.query_cache:
+            logger.info(f"Using cached results for query: {query}")
+            return self.query_cache[cache_key]
         
-        return [
+        # Enhance the query with O-1A context
+        enhanced_query = f"O-1A visa qualification: {query}"
+        
+        # Log the query
+        logger.info(f"Querying knowledge base with: {enhanced_query}")
+        
+        # Perform the search
+        results = self.vector_store.similarity_search_with_score(enhanced_query, k=top_k)
+        
+        # Process and format results
+        processed_results = [
             {
                 "content": doc.page_content,
                 "criterion": doc.metadata.get("criterion", "Unknown"),
+                "source": doc.metadata.get("source", "Unknown"),
                 "score": score
             }
             for doc, score in results
         ]
+        
+        # Cache the results
+        self.query_cache[cache_key] = processed_results
+        
+        return processed_results
     
     def process_cv(self, cv_text: str) -> Dict[str, List[Dict[str, Any]]]:
         """
@@ -142,6 +203,7 @@ class RAGService:
         
         # Split CV into chunks for processing
         cv_chunks = self.text_splitter.split_text(cv_text)
+        logger.info(f"Split CV into {len(cv_chunks)} chunks for processing")
         
         results = {}
         
@@ -150,7 +212,7 @@ class RAGService:
             criterion_results = []
             
             # Query the knowledge base for information about this criterion
-            kb_results = self.query_knowledge_base(f"What qualifies as {criterion} for O-1A visa?", top_k=2)
+            kb_results = self.query_knowledge_base(f"Detailed explanation of {criterion} criterion for O-1A visa with examples", top_k=2)
             
             # Use the knowledge base information to find relevant parts in the CV
             for kb_item in kb_results:
