@@ -17,9 +17,15 @@ The system uses a combination of:
 └─────────────┘     └───────────────┘     └────────┬────────┘
                                                    │
                                                    ▼
+                                          ┌────────────────┐
+                                          │ Assessment     │
+                                          │ Service (Qwen) │
+                                          └────────┬───────┘
+                                                   │
+                                                   ▼
 ┌─────────────┐     ┌───────────────┐     ┌────────────────┐
-│ Knowledge   │────▶│ RAG Service   │◀────│ Assessment     │
-│ Base        │     │ (BGE)         │     │ Service (Qwen) │
+│ Knowledge   │────▶│ RAG Service   │────▶│ Criterion      │
+│ Base        │     │ (BGE)         │     │ Information    │
 └─────────────┘     └───────────────┘     └────────┬───────┘
                                                    │
                                                    ▼
@@ -45,6 +51,7 @@ The system uses a combination of:
   - Confidence score for each criterion
   - Overall qualification rating (low, medium, high)
   - Explanation of the assessment
+- **Multilingual Support**: Capable of analyzing CVs in multiple languages thanks to Qwen2.5-0.5B's strong multilingual capabilities
 
 ## Key Enhancements
 
@@ -117,11 +124,16 @@ Health check endpoint.
 ## Setup and Installation
 
 1. Clone the repository
-2. Install dependencies:
+2. Create a virtual environment via the following steps:
+   - Create virtual environment: `python -m venv venv`
+   - Activate virtual environment:
+     - Windows: `venv\Scripts\activate`
+     - Unix/MacOS: `source venv/bin/activate`
+3. Install dependencies:
    ```
    pip install -r requirements.txt
    ```
-3. Run the application:
+4. Run the application:
    ```
    python run.py
    ```
@@ -142,6 +154,8 @@ While the application can run on CPU or other GPUs, an A100 GPU will provide the
 
 BGE (BAAI General Embeddings) models are efficient and perform well for semantic search. The system tries to use the largest available BGE model, falling back to smaller versions if necessary, providing a good balance between performance and speed.
 
+BGE models also offer strong multilingual capabilities, supporting over 100 languages with consistent performance across language boundaries. This makes them ideal for processing international CVs without requiring translation.
+
 ### Why Qwen2.5-0.5B?
 
 Qwen2.5-0.5B is one of the smallest yet capable language models available. It provides:
@@ -150,7 +164,7 @@ Qwen2.5-0.5B is one of the smallest yet capable language models available. It pr
 - Low memory requirements
 - Sufficient reasoning capabilities for CV analysis
 - Good performance on text analysis tasks
-- Strong multilingual capabilities, supporting analysis of CVs in multiple languages
+- **Strong multilingual capabilities**: Supports analysis of CVs in multiple languages including English, Spanish, French, German, Chinese, and many others without requiring translation
 
 This makes it ideal for a responsive API that needs to analyze documents efficiently.
 

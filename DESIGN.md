@@ -26,12 +26,14 @@ The system follows a modular architecture with the following components:
 - **Efficiency**: Even the small variant (384 dimensions) is computationally efficient
 - **Performance**: All BGE models perform well on semantic search tasks
 - **Balance**: Provides a good balance between accuracy and speed
-- **Language Support**: Well-suited for English text analysis
+- **Multilingual Support**: Excellent cross-lingual capabilities, supporting over 100 languages with consistent embedding quality
+- **Cross-lingual Retrieval**: Able to match concepts across language boundaries, ideal for international applicants
 
 **Implementation Details**:
 
 - The system tries to load models in this order: bge-large-en-v1.5, bge-base-en-v1.5, bge-small-en-v1.5, bge-small-en
 - Automatic fallback ensures the system works even with limited resources
+- Leverages BGE's multilingual embeddings for knowledge base retrieval regardless of query language
 
 ### 2. Choice of LLM: Qwen2.5-0.5B
 
@@ -44,11 +46,13 @@ The system follows a modular architecture with the following components:
 - **Efficiency**: Low memory requirements (can run on CPU if needed)
 - **Capability**: Despite its small size, it has sufficient reasoning capabilities for CV analysis
 - **Open Source**: Freely available and can be deployed without API costs
+- **Multilingual Excellence**: Exceptional multilingual capabilities, supporting dozens of languages without requiring translation services
 
 **Implementation Details**:
 
 - The model is loaded once at service initialization to avoid repeated loading costs
 - Fallback to GPT-2 if Qwen2.5-0.5B cannot be loaded
+- Leverages Qwen's multilingual tokenizer to process text in various languages
 
 ### 3. Direct Evidence Extraction
 
@@ -118,6 +122,27 @@ The system follows a modular architecture with the following components:
   - Position-based confidence for Critical Employment
   - Evidence count and quality-based confidence for other criteria
 
+### 6. Self-Hosted LLM Instead of OpenAI API
+
+**Decision**: Use a self-hosted Qwen2.5-0.5B model instead of relying on OpenAI API calls.
+
+**Rationale**:
+
+- **Cost Efficiency**: Eliminates ongoing API costs, making the system more economical for high-volume usage
+- **Privacy and Data Security**: All CV data is processed locally without sending sensitive information to external APIs
+- **Latency Reduction**: Eliminates network latency associated with API calls, resulting in faster response times
+- **Reliability**: No dependency on external service availability or rate limits
+- **Customization Control**: Complete control over model parameters, inference settings, and potential fine-tuning
+- **Predictable Performance**: Consistent performance without being affected by OpenAI's model updates or changes
+- **Regulatory Compliance**: Easier to comply with data residency requirements in regulated industries
+
+**Implementation Details**:
+
+- Local deployment of Qwen2.5-0.5B with optimized inference settings
+- Fallback mechanism to GPT-2 if Qwen model loading fails
+- Direct integration with the assessment pipeline without API middleware
+- Custom prompt engineering optimized for the specific model architecture
+
 ## Assessment Methodology
 
 The system follows a comprehensive assessment methodology:
@@ -163,6 +188,8 @@ The system identifies critical employment positions using:
    - STEM Organizations and Roles
 3. **Education Filtering**: Filters out education items to avoid false positives
 
+This is still a bit buggy. 
+
 ### High Remuneration
 
 The system identifies high remuneration using:
@@ -173,6 +200,21 @@ The system identifies high remuneration using:
    - Medium: $150,000 to $350,000
    - High: More than $350,000
 3. **Pattern Recognition**: Identifies salary patterns with or without specific amounts
+
+This is still a bit buggy.
+
+### Multilingual Processing
+
+The system handles CVs in multiple languages through:
+
+1. **Native Language Processing**: Qwen2.5-0.5B processes text in its original language without translation
+2. **Cross-lingual Understanding**: The model can understand concepts across languages (e.g., recognizing "Prix" in French as an award)
+3. **Language Detection**: Automatically detects the CV language to apply appropriate processing
+4. **Multilingual Keyword Recognition**: Domain-specific keywords are recognized across languages
+5. **Consistent Scoring**: Maintains consistent evaluation standards regardless of CV language
+6. **Cross-lingual Knowledge Retrieval**: BGE embeddings match relevant knowledge base entries even when the CV and knowledge base are in different languages
+
+This capability is particularly valuable for O-1A visa applicants, who often come from diverse linguistic backgrounds.
 
 ## Limitations and Future Improvements
 
