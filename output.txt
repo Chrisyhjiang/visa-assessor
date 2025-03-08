@@ -1,0 +1,741 @@
+import uvicorn
+
+if __name__ == "__main__":
+    print("Starting O-1A Visa Qualification Assessment API...")
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True) import subprocess
+import sys
+import importlib
+
+def install_package(package_name):
+    print(f"Installing {package_name}...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--force-reinstall", package_name])
+    print(f"{package_name} installed successfully!")
+
+def verify_import(package_name):
+    try:
+        importlib.import_module(package_name)
+        print(f"✅ {package_name} imported successfully!")
+        return True
+    except ImportError as e:
+        print(f"❌ Failed to import {package_name}: {str(e)}")
+        return False
+
+if __name__ == "__main__":
+    # List of packages to check and install
+    packages = ["sentence_transformers", "transformers", "torch"]
+    
+    for package in packages:
+        if not verify_import(package):
+            install_package(package)
+            verify_import(package)
+    
+    # Verify HuggingFaceBgeEmbeddings can be imported
+    try:
+        from langchain.embeddings import HuggingFaceBgeEmbeddings
+        print("✅ HuggingFaceBgeEmbeddings imported successfully!")
+    except ImportError as e:
+        print(f"❌ Failed to import HuggingFaceBgeEmbeddings: {str(e)}")
+        install_package("langchain-community")
+        try:
+            from langchain.embeddings import HuggingFaceBgeEmbeddings
+            print("✅ HuggingFaceBgeEmbeddings imported successfully after reinstall!")
+        except ImportError as e:
+            print(f"❌ Still failed to import HuggingFaceBgeEmbeddings: {str(e)}")
+    
+    print("\nAll dependencies checked and fixed if needed!") from pydantic import BaseModel
+from enum import Enum
+from typing import List, Dict, Optional
+
+class QualificationRating(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+class CriterionMatch(BaseModel):
+    criterion: str
+    evidence: List[str]
+    confidence: float
+
+class AssessmentResponse(BaseModel):
+    criteria_matches: Dict[str, CriterionMatch]
+    overall_rating: QualificationRating
+    explanation: str from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import os
+import tempfile
+import logging
+import traceback
+from typing import Dict, Any
+
+from app.models.assessment import AssessmentResponse, CriterionMatch, QualificationRating
+from app.services.cv_parser import parse_cv
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="O-1A Visa Qualification Assessment API",
+    description="API for assessing O-1A visa qualification based on CV analysis",
+    version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize assessment service lazily to handle import errors gracefully
+assessment_service = None
+
+def get_assessment_service():
+    global assessment_service
+    if assessment_service is None:
+        try:
+            from app.services.assessment import assess_o1a_qualification
+            assessment_service = assess_o1a_qualification
+        except ImportError as e:
+            logger.error(f"Failed to import assessment service: {str(e)}", exc_info=True)
+            raise ImportError(f"Failed to import assessment service: {str(e)}")
+    return assessment_service
+
+@app.post("/assess-cv", response_model=AssessmentResponse)
+async def assess_cv(file: UploadFile = File(...)):
+    """
+    Assess a CV for O-1A visa qualification.
+    
+    - **file**: CV file (PDF or DOCX format)
+    
+    Returns an assessment of the CV against O-1A visa criteria.
+    """
+    logger.info(f"Received file: {file.filename}")
+    temp_file_path = None
+    
+    try:
+        # Check file extension
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        if file_extension not in ['.pdf', '.docx', '.txt']:
+            logger.warning(f"Unsupported file format: {file_extension}")
+            raise HTTPException(
+                status_code=400, 
+                detail="Unsupported file format. Please upload a PDF, DOCX, or TXT file."
+            )
+        
+        # Save the uploaded file temporarily
+        logger.info("Saving uploaded file temporarily")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+            content = await file.read()
+            logger.info(f"Read {len(content)} bytes from uploaded file")
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Parse the CV
+            logger.info("Parsing CV")
+            cv_text = parse_cv(temp_file_path)
+            logger.info(f"Successfully parsed CV, extracted {len(cv_text)} characters")
+            
+            # Get the assessment service
+            try:
+                assess_func = get_assessment_service()
+            except ImportError as e:
+                logger.error(f"Dependency error: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Server configuration error: Missing required dependencies. Please check server logs."
+                )
+            
+            # Assess the CV against O-1A criteria
+            logger.info("Assessing CV against O-1A criteria")
+            assessment_result = assess_func(cv_text)
+            logger.info("Successfully assessed CV")
+            
+            # Convert the assessment result to the response model format
+            criteria_matches = {}
+            for criterion, result in assessment_result["criteria_matches"].items():
+                criteria_matches[criterion] = CriterionMatch(
+                    criterion=result["criterion"],
+                    evidence=result["evidence"],
+                    confidence=result["confidence"]
+                )
+            
+            response = AssessmentResponse(
+                criteria_matches=criteria_matches,
+                overall_rating=assessment_result["overall_rating"],
+                explanation=assessment_result["explanation"]
+            )
+            
+            logger.info("Returning assessment response")
+            return response
+            
+        finally:
+            # Clean up the temporary file
+            if temp_file_path and os.path.exists(temp_file_path):
+                logger.info("Cleaning up temporary file")
+                os.unlink(temp_file_path)
+    
+    except Exception as e:
+        logger.error(f"Error processing CV: {str(e)}", exc_info=True)
+        # Clean up the temporary file if it exists
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up temporary file: {str(cleanup_error)}")
+        
+        # Provide a more user-friendly error message for dependency issues
+        if "sentence_transformers" in str(e):
+            error_message = "Server configuration error: The sentence_transformers package is required but not properly installed. Please contact the administrator."
+        else:
+            error_message = f"Error processing CV: {str(e)}"
+        
+        raise HTTPException(status_code=500, detail=error_message)
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+if __name__ == "__main__":
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True) from typing import Dict, List, Any, Optional
+from enum import Enum
+import os
+import logging
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+from app.services.rag_service import RAGService
+from app.services.cv_parser import parse_cv
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class QualificationRating(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+class CriterionMatch:
+    def __init__(self, criterion: str, evidence: List[str], confidence: float):
+        self.criterion = criterion
+        self.evidence = evidence
+        self.confidence = confidence
+
+class O1AAssessmentService:
+    def __init__(self):
+        """Initialize the O-1A assessment service with Qwen model."""
+        try:
+            # Initialize the RAG service
+            logger.info("Initializing RAG service...")
+            self.rag_service = RAGService()
+            
+            # Initialize Qwen model (smallest version for speed)
+            logger.info("Initializing Qwen model...")
+            self.model_name = "Qwen/Qwen1.5-0.5B"
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                device_map="auto",
+                trust_remote_code=True
+            )
+            logger.info("Qwen model initialized successfully")
+            
+            # Set the criteria
+            self.criteria = [
+                "Awards", 
+                "Membership", 
+                "Press", 
+                "Judging", 
+                "Original_contribution",
+                "Scholarly_articles", 
+                "Critical_employment", 
+                "High_remuneration"
+            ]
+            logger.info("O1A Assessment Service initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing O1A Assessment Service: {str(e)}", exc_info=True)
+            raise RuntimeError(f"Failed to initialize O1A Assessment Service: {str(e)}")
+    
+    def _generate_response(self, prompt: str, max_length: int = 512) -> str:
+        """
+        Generate a response from the Qwen model.
+        
+        Args:
+            prompt: Input prompt for the model
+            max_length: Maximum length of the generated response
+            
+        Returns:
+            Generated response text
+        """
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        
+        with torch.no_grad():
+            outputs = self.model.generate(
+                inputs.input_ids,
+                max_new_tokens=max_length,
+                do_sample=False,
+                temperature=0.7,
+                top_p=0.9,
+            )
+        
+        response = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+        return response
+    
+    def _analyze_criterion(self, cv_text: str, criterion: str, criterion_info: str) -> Dict[str, Any]:
+        """
+        Analyze a CV for a specific O-1A criterion.
+        
+        Args:
+            cv_text: Text content of the CV
+            criterion: The criterion to analyze
+            criterion_info: Information about the criterion
+            
+        Returns:
+            Analysis results for the criterion
+        """
+        prompt = f"""
+        You are an expert immigration consultant specializing in O-1A visas. 
+        
+        CRITERION INFORMATION:
+        {criterion_info}
+        
+        CV CONTENT:
+        {cv_text}
+        
+        TASK:
+        1. Identify any evidence in the CV that satisfies the {criterion} criterion for an O-1A visa.
+        2. List each piece of evidence you find.
+        3. Provide a confidence score (0-100) for how strongly this evidence satisfies the criterion.
+        4. If no evidence is found, state "No evidence found."
+        
+        FORMAT YOUR RESPONSE AS FOLLOWS:
+        Evidence:
+        - [First piece of evidence]
+        - [Second piece of evidence]
+        - ...
+        
+        Confidence: [0-100]
+        """
+        
+        response = self._generate_response(prompt)
+        
+        # Parse the response to extract evidence and confidence
+        evidence = []
+        confidence = 0
+        
+        if "No evidence found" not in response:
+            # Extract evidence items
+            if "Evidence:" in response:
+                evidence_section = response.split("Evidence:")[1].split("Confidence:")[0].strip()
+                evidence = [item.strip().lstrip("- ") for item in evidence_section.split("\n") if item.strip()]
+            
+            # Extract confidence score
+            if "Confidence:" in response:
+                confidence_text = response.split("Confidence:")[1].strip()
+                try:
+                    confidence = float(confidence_text) / 100.0  # Normalize to 0-1
+                except ValueError:
+                    confidence = 0.0
+        
+        return {
+            "criterion": criterion,
+            "evidence": evidence,
+            "confidence": confidence
+        }
+    
+    def _determine_overall_rating(self, criteria_results: Dict[str, Dict[str, Any]]) -> QualificationRating:
+        """
+        Determine the overall O-1A qualification rating based on criteria results.
+        
+        Args:
+            criteria_results: Results for each criterion
+            
+        Returns:
+            Overall qualification rating
+        """
+        # Count criteria with evidence
+        criteria_with_evidence = sum(1 for result in criteria_results.values() if result["evidence"])
+        
+        # Calculate average confidence across criteria with evidence
+        confidences = [result["confidence"] for result in criteria_results.values() if result["evidence"]]
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+        
+        # O-1A requires meeting at least 3 criteria
+        if criteria_with_evidence >= 3 and avg_confidence > 0.7:
+            return QualificationRating.HIGH
+        elif criteria_with_evidence >= 3 and avg_confidence > 0.4:
+            return QualificationRating.MEDIUM
+        elif criteria_with_evidence >= 2:
+            return QualificationRating.LOW
+        else:
+            return QualificationRating.LOW
+    
+    def _generate_explanation(self, criteria_results: Dict[str, Dict[str, Any]], overall_rating: QualificationRating) -> str:
+        """
+        Generate an explanation for the assessment results.
+        
+        Args:
+            criteria_results: Results for each criterion
+            overall_rating: Overall qualification rating
+            
+        Returns:
+            Explanation text
+        """
+        criteria_met = [criterion for criterion, result in criteria_results.items() if result["evidence"]]
+        criteria_not_met = [criterion for criterion, result in criteria_results.items() if not result["evidence"]]
+        
+        prompt = f"""
+        You are an expert immigration consultant specializing in O-1A visas.
+        
+        ASSESSMENT RESULTS:
+        - Overall Rating: {overall_rating.value}
+        - Criteria Met: {', '.join(criteria_met) if criteria_met else 'None'}
+        - Criteria Not Met: {', '.join(criteria_not_met) if criteria_not_met else 'None'}
+        
+        TASK:
+        Write a concise explanation (3-5 sentences) of this O-1A visa qualification assessment. 
+        Explain why the applicant received this rating and what it means for their chances.
+        For an O-1A visa, an applicant must satisfy at least 3 of the 8 criteria.
+        """
+        
+        explanation = self._generate_response(prompt)
+        return explanation
+    
+    def assess_cv(self, cv_text: str) -> Dict[str, Any]:
+        """
+        Assess a CV for O-1A visa qualification.
+        
+        Args:
+            cv_text: Text content of the CV
+            
+        Returns:
+            Assessment results
+        """
+        criteria_results = {}
+        
+        # Process each criterion
+        for criterion in self.criteria:
+            # Get criterion information from the knowledge base
+            kb_results = self.rag_service.query_knowledge_base(f"What qualifies as {criterion} for O-1A visa?", top_k=1)
+            criterion_info = kb_results[0]["content"] if kb_results else ""
+            
+            # Analyze the CV for this criterion
+            result = self._analyze_criterion(cv_text, criterion, criterion_info)
+            criteria_results[criterion] = result
+        
+        # Determine overall rating
+        overall_rating = self._determine_overall_rating(criteria_results)
+        
+        # Generate explanation
+        explanation = self._generate_explanation(criteria_results, overall_rating)
+        
+        return {
+            "criteria_matches": criteria_results,
+            "overall_rating": overall_rating,
+            "explanation": explanation
+        }
+
+def assess_o1a_qualification(cv_text: str) -> Dict[str, Any]:
+    """
+    Assess a CV for O-1A visa qualification.
+    
+    Args:
+        cv_text: Text content of the CV
+        
+    Returns:
+        Assessment results
+    """
+    service = O1AAssessmentService()
+    return service.assess_cv(cv_text) import os
+from typing import Optional
+
+def parse_cv(file_path: str) -> str:
+    """
+    Parse a CV file and extract text content.
+    Supports PDF, DOCX, and TXT formats.
+    
+    Args:
+        file_path: Path to the CV file
+        
+    Returns:
+        Extracted text from the CV
+    """
+    file_extension = os.path.splitext(file_path)[1].lower()
+    
+    if file_extension == '.pdf':
+        return _parse_pdf(file_path)
+    elif file_extension == '.docx':
+        return _parse_docx(file_path)
+    elif file_extension == '.txt':
+        return _parse_txt(file_path)
+    else:
+        raise ValueError(f"Unsupported file format: {file_extension}")
+
+def _parse_pdf(file_path: str) -> str:
+    """Parse PDF files using PyPDF."""
+    from pypdf import PdfReader
+    
+    reader = PdfReader(file_path)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() + "\n"
+    return text
+
+def _parse_docx(file_path: str) -> str:
+    """Parse DOCX files using docx2txt."""
+    import docx2txt
+    
+    text = docx2txt.process(file_path)
+    return text
+
+def _parse_txt(file_path: str) -> str:
+    """Parse TXT files by reading the content directly."""
+    with open(file_path, 'r') as f:
+        text = f.read()
+    return text from langchain.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.docstore.document import Document
+from typing import List, Dict, Any
+import os
+import logging
+import importlib.util
+import sys
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Check if sentence_transformers is available
+sentence_transformers_available = importlib.util.find_spec("sentence_transformers") is not None
+if not sentence_transformers_available:
+    logger.warning("sentence_transformers package not found. Attempting to install it...")
+    try:
+        import subprocess
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence_transformers"])
+        logger.info("Successfully installed sentence_transformers")
+        sentence_transformers_available = True
+    except Exception as e:
+        logger.error(f"Failed to install sentence_transformers: {str(e)}")
+
+# Import HuggingFaceBgeEmbeddings only if sentence_transformers is available
+if sentence_transformers_available:
+    try:
+        from langchain.embeddings import HuggingFaceBgeEmbeddings
+        logger.info("Successfully imported HuggingFaceBgeEmbeddings")
+    except ImportError as e:
+        logger.error(f"Error importing HuggingFaceBgeEmbeddings: {str(e)}")
+        raise ImportError(f"Error importing HuggingFaceBgeEmbeddings: {str(e)}")
+
+class RAGService:
+    def __init__(self, knowledge_base_dir: str = "app/knowledge_base"):
+        """
+        Initialize the RAG service with BGE embeddings.
+        
+        Args:
+            knowledge_base_dir: Directory containing knowledge base documents
+        """
+        try:
+            if not sentence_transformers_available:
+                raise ImportError("sentence_transformers package is required but not available")
+            
+            # Initialize BGE embeddings (smallest model for efficiency)
+            logger.info("Initializing BGE embeddings...")
+            self.embeddings = HuggingFaceBgeEmbeddings(
+                model_name="BAAI/bge-small-en-v1.5",
+                model_kwargs={"device": "cpu"},
+                encode_kwargs={"normalize_embeddings": True}
+            )
+            
+            # Initialize vector store
+            logger.info("Initializing vector store...")
+            self.vector_store = self._initialize_vector_store(knowledge_base_dir)
+            
+            # Text splitter for chunking documents
+            self.text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=500,
+                chunk_overlap=50
+            )
+            logger.info("RAG service initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing RAG service: {str(e)}", exc_info=True)
+            raise RuntimeError(f"Failed to initialize RAG service: {str(e)}")
+    
+    def _initialize_vector_store(self, knowledge_base_dir: str) -> FAISS:
+        """
+        Initialize the vector store with knowledge base documents.
+        
+        Args:
+            knowledge_base_dir: Directory containing knowledge base documents
+            
+        Returns:
+            Initialized FAISS vector store
+        """
+        documents = []
+        
+        # Load knowledge base documents
+        for filename in os.listdir(knowledge_base_dir):
+            if filename.endswith(".txt"):
+                file_path = os.path.join(knowledge_base_dir, filename)
+                with open(file_path, "r") as f:
+                    content = f.read()
+                    # Extract criterion name from filename (e.g., "awards.txt" -> "Awards")
+                    criterion = os.path.splitext(filename)[0].capitalize()
+                    doc = Document(
+                        page_content=content,
+                        metadata={"criterion": criterion}
+                    )
+                    documents.append(doc)
+        
+        # Split documents into chunks
+        chunks = self.text_splitter.split_documents(documents)
+        
+        # Create vector store
+        return FAISS.from_documents(chunks, self.embeddings)
+    
+    def query_knowledge_base(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        """
+        Query the knowledge base for relevant information.
+        
+        Args:
+            query: Query text
+            top_k: Number of top results to return
+            
+        Returns:
+            List of relevant documents with metadata
+        """
+        results = self.vector_store.similarity_search_with_score(query, k=top_k)
+        
+        return [
+            {
+                "content": doc.page_content,
+                "criterion": doc.metadata.get("criterion", "Unknown"),
+                "score": score
+            }
+            for doc, score in results
+        ]
+    
+    def process_cv(self, cv_text: str) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Process a CV and retrieve relevant information for each criterion.
+        
+        Args:
+            cv_text: Text content of the CV
+            
+        Returns:
+            Dictionary mapping criteria to relevant information
+        """
+        # Define the O-1A criteria
+        criteria = [
+            "Awards", 
+            "Membership", 
+            "Press", 
+            "Judging", 
+            "Original_contribution",
+            "Scholarly_articles", 
+            "Critical_employment", 
+            "High_remuneration"
+        ]
+        
+        # Split CV into chunks for processing
+        cv_chunks = self.text_splitter.split_text(cv_text)
+        
+        results = {}
+        
+        # For each criterion, find relevant information in the CV
+        for criterion in criteria:
+            criterion_results = []
+            
+            # Query the knowledge base for information about this criterion
+            kb_results = self.query_knowledge_base(f"What qualifies as {criterion} for O-1A visa?", top_k=2)
+            
+            # Use the knowledge base information to find relevant parts in the CV
+            for kb_item in kb_results:
+                for chunk in cv_chunks:
+                    # Query combining the CV chunk and the criterion information
+                    query = f"Does this CV section demonstrate {criterion} according to O-1A criteria? CV section: {chunk}"
+                    
+                    # We'll use this query with the LLM in the assessment service
+                    criterion_results.append({
+                        "cv_chunk": chunk,
+                        "criterion_info": kb_item["content"],
+                        "query": query
+                    })
+            
+            results[criterion] = criterion_results
+        
+        return results import requests
+import os
+import sys
+import unittest
+from fastapi.testclient import TestClient
+
+# Add the parent directory to the path so we can import the app
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.main import app
+
+class TestO1AAssessmentAPI(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(app)
+    
+    def test_health_endpoint(self):
+        """Test that the health endpoint returns a 200 status code."""
+        response = self.client.get("/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "healthy"})
+    
+    def test_assess_cv_endpoint_invalid_format(self):
+        """Test that the assess-cv endpoint rejects invalid file formats."""
+        # Create a test file with an invalid extension
+        with open("test_invalid.txt", "w") as f:
+            f.write("This is a test CV")
+        
+        with open("test_invalid.txt", "rb") as f:
+            response = self.client.post(
+                "/assess-cv",
+                files={"file": ("test_invalid.txt", f, "text/plain")}
+            )
+        
+        # Clean up the test file
+        os.remove("test_invalid.txt")
+        
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Unsupported file format", response.json()["detail"])
+
+if __name__ == "__main__":
+    unittest.main() .
+├── DESIGN.md
+├── README.md
+├── app
+│   ├── knowledge_base
+│   │   ├── awards.txt
+│   │   ├── critical_employment.txt
+│   │   ├── high_remuneration.txt
+│   │   ├── judging.txt
+│   │   ├── membership.txt
+│   │   ├── original_contribution.txt
+│   │   ├── press.txt
+│   │   └── scholarly_articles.txt
+│   ├── main.py
+│   ├── models
+│   │   └── assessment.py
+│   ├── services
+│   │   ├── assessment.py
+│   │   ├── cv_parser.py
+│   │   └── rag_service.py
+│   └── utils
+├── fix_dependencies.py
+├── output.txt
+├── requirements.txt
+├── run.py
+└── tests
+    ├── cv.txt
+    └── test_api.py
+
+7 directories, 21 files
