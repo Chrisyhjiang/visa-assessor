@@ -164,6 +164,7 @@ The system follows a comprehensive assessment methodology:
 2. **Caching**: The RAG service implements caching to avoid redundant processing
 
 3. **Chunking Strategy**: CV text is split into manageable chunks to:
+
    - Avoid token limits
    - Focus analysis on relevant sections
    - Improve processing efficiency

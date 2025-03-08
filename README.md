@@ -169,6 +169,8 @@ Qwen2.5-0.5B is one of the smallest yet capable language models available. It pr
 
 This makes it ideal for a responsive API that needs to analyze documents efficiently.
 
+**Please checkout DESIGN.md for more information on the Design chocies of this project"**
+
 ## Evaluation
 
 The system's assessment quality can be evaluated by:
