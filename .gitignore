@@ -1,1 +1,53 @@
-venv
+# Python virtual environments
+venv/
+env/
+ENV/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ML model files and data
+*.bin
+*.pt
+*.pth
+*.onnx
+*.h5
+*.hdf5
+*.pkl
+*.model
+model_cache/
+.vector_store/
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# Jupyter Notebook
+.ipynb_checkpoints

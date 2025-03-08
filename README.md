@@ -7,7 +7,7 @@ This API assesses how qualified a person is for an O-1A immigration visa based o
 The system uses a combination of:
 
 1. **BGE Embeddings for RAG (Retrieval-Augmented Generation)**: To provide relevant context about O-1A visa criteria when analyzing a CV.
-2. **Qwen 1.5 0.5B Model**: A small, efficient language model to analyze the CV content against the O-1A criteria and generate the assessment.
+2. **Qwen2.5-0.5B Model**: A small, efficient language model to analyze the CV content against the O-1A criteria and generate the assessment.
 
 ### Architecture
 
@@ -30,7 +30,7 @@ The system uses a combination of:
 
 ## Features
 
-- Analyzes CVs in PDF or DOCX format
+- Analyzes CVs in PDF, DOCX, or TXT format
 - Evaluates against all 8 O-1A criteria:
   - Awards
   - Membership
@@ -46,11 +46,27 @@ The system uses a combination of:
   - Overall qualification rating (low, medium, high)
   - Explanation of the assessment
 
+## Key Enhancements
+
+The system has been enhanced to:
+
+1. **Support All Fields of Employment**: The assessment system now recognizes achievements across diverse industries including Business, Arts, Medicine, Law, Finance, Technology, Education, and Government/Public Service.
+
+2. **Direct Evidence Extraction**: The system directly extracts evidence for each criterion from the CV before falling back to LLM analysis, improving accuracy and reducing hallucinations.
+
+3. **Specialized Criteria Handling**:
+   - **Critical Employment**: Identifies STEM, government, military, and leadership positions with specialized keyword matching
+   - **High Remuneration**: Detects salary information with specific thresholds ($150,000 to $350,000 for medium confidence, >$350,000 for high confidence)
+
+4. **Improved Evidence Validation**: Filters out section titles, "N/A" values, and other non-evidence items to ensure only valid evidence is considered.
+
+5. **Enhanced Confidence Scoring**: Calculates confidence scores based on the quality and quantity of evidence found for each criterion.
+
 ## Technical Implementation
 
 - **FastAPI**: For the API framework
 - **BGE Embeddings**: For semantic search in the knowledge base
-- **Qwen 1.5 0.5B**: For CV analysis and assessment generation
+- **Qwen2.5-0.5B**: For CV analysis and assessment generation
 - **FAISS**: For efficient vector storage and retrieval
 - **LangChain**: For RAG implementation
 
@@ -62,7 +78,7 @@ Assesses a CV for O-1A visa qualification.
 
 **Request**:
 
-- Form data with a file upload (PDF or DOCX)
+- Form data with a file upload (PDF, DOCX, or TXT)
 
 **Response**:
 
@@ -107,18 +123,28 @@ Health check endpoint.
    ```
 3. Run the application:
    ```
+   python run.py
+   ```
+   or
+   ```
    uvicorn app.main:app --reload
    ```
+
+### Hardware Requirements
+
+**For optimal performance speed, run this application on a machine with an NVIDIA A100 GPU.**
+
+While the application can run on CPU or other GPUs, an A100 GPU will provide the fastest processing times for both the embedding generation and LLM inference steps. The Qwen2.5-0.5B model and BGE embeddings are optimized for GPU acceleration.
 
 ## Design Choices
 
 ### Why BGE Embeddings for RAG?
 
-BGE (BAAI General Embeddings) models are efficient and perform well for semantic search. The "small" version provides a good balance between performance and speed, making it ideal for retrieving relevant information about O-1A criteria.
+BGE (BAAI General Embeddings) models are efficient and perform well for semantic search. The system tries to use the largest available BGE model, falling back to smaller versions if necessary, providing a good balance between performance and speed.
 
-### Why Qwen 1.5 0.5B?
+### Why Qwen2.5-0.5B?
 
-Qwen 1.5 0.5B is one of the smallest yet capable language models available. It provides:
+Qwen2.5-0.5B is one of the smallest yet capable language models available. It provides:
 
 - Fast inference speed
 - Low memory requirements
