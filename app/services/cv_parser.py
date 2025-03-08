@@ -122,21 +122,51 @@ CRITERIA_KEYWORDS = {
         "authoritative", "comprehensive", "extensive", "in-depth", "rigorous"
     ],
     "Critical_employment": [
-        # Position Terms
-        "position", "role", "job", "employment", "employed", "work", "career", 
-        "professional", "experience", "senior", "lead", "chief", "head", "director", 
-        "manager", "executive", "officer", "principal", "founder", "co-founder",
-        "leadership", "team lead", "supervisor", "administrator",
+        # Technology Companies
+        "Google", "Microsoft", "Apple", "Amazon", "Facebook", "Meta", "OpenAI", "DeepMind",
+        "Research Scientist", "Principal Scientist", "Distinguished Scientist", "Fellow",
+        "Chief Scientist", "Director of Research", "VP of Research", "Head of AI", "Lead",
         
-        # Responsibility Indicators
-        "responsible for", "accountable for", "in charge of", "oversaw", "managed",
-        "led", "directed", "supervised", "coordinated", "administered", "executed",
-        "implemented", "delivered", "achieved", "accomplished", "spearheaded",
+        # Executive Roles
+        "CEO", "Chief Executive Officer", "COO", "Chief Operating Officer", "CFO", "Chief Financial Officer",
+        "CTO", "Chief Technology Officer", "CIO", "Chief Information Officer", "CISO", "Chief Information Security Officer",
+        "CMO", "Chief Marketing Officer", "CPO", "Chief Product Officer", "CDO", "Chief Data Officer",
+        "President", "Executive Director", "Managing Director", "General Manager", "Partner",
         
-        # Organizational Context
-        "department", "division", "unit", "team", "group", "organization", "company",
-        "corporation", "firm", "agency", "institution", "establishment", "enterprise",
-        "venture", "startup", "practice", "office", "bureau", "laboratory", "studio"
+        # Leadership Roles
+        "Director", "Vice President", "Senior Vice President", "Executive Vice President",
+        "Head of", "Leader", "Manager", "Senior Manager", "Principal", "Group Lead",
+        "Department Chair", "Dean", "Provost", "Chancellor", "President", "Superintendent",
+        
+        # Government Agencies and Roles
+        "Department of Defense", "DoD", "Department of Energy", "DOE", "Department of State", "DOS",
+        "Department of Justice", "DOJ", "Department of Homeland Security", "DHS",
+        "National Security Agency", "NSA", "Central Intelligence Agency", "CIA",
+        "Federal Bureau of Investigation", "FBI", "National Institutes of Health", "NIH",
+        "Centers for Disease Control", "CDC", "Food and Drug Administration", "FDA",
+        "Environmental Protection Agency", "EPA", "National Aeronautics and Space Administration", "NASA",
+        "Federal Reserve", "Treasury Department", "State Department", "Defense Department",
+        "Secretary", "Deputy Secretary", "Under Secretary", "Assistant Secretary",
+        "Administrator", "Commissioner", "Director General", "Diplomat", "Foreign Service Officer",
+        "Civil Servant", "Public Servant", "Policy Advisor", "Policy Analyst",
+        
+        # Military Branches and Roles
+        "U.S. Army", "U.S. Navy", "U.S. Air Force", "U.S. Marine Corps", "U.S. Coast Guard",
+        "Space Force", "National Guard", "Reserves", "Armed Forces", "Department of Defense",
+        "General", "Admiral", "Colonel", "Major", "Captain", "Lieutenant", "Commander",
+        "Sergeant", "Officer", "Enlisted", "Veteran", "Military Intelligence", "Special Forces",
+        "Combat", "Deployment", "Operation", "Mission", "Strategic Command", "Tactical Operations",
+        
+        # STEM Organizations and Roles
+        "NASA", "DARPA", "National Science Foundation", "NSF", "National Laboratories",
+        "Los Alamos", "Lawrence Livermore", "Oak Ridge", "Sandia", "Argonne", "Brookhaven",
+        "CERN", "Max Planck Institute", "MIT Lincoln Laboratory", "Johns Hopkins Applied Physics Laboratory",
+        "Scientist", "Engineer", "Researcher", "Developer", "Programmer", "Technologist",
+        "Mathematician", "Statistician", "Data Scientist", "Machine Learning Engineer",
+        "AI Researcher", "Computational Biologist", "Quantum Physicist", "Aerospace Engineer",
+        "Robotics Engineer", "Biotechnologist", "Nanotechnologist", "Systems Architect",
+        "Principal Investigator", "Research Director", "Lab Director", "Chief Engineer",
+        "Technical Fellow", "Distinguished Engineer", "Technical Lead", "R&D Manager"
     ],
     "High_remuneration": [
         # Financial Terms
@@ -347,15 +377,35 @@ DOMAIN_ENTITIES = {
         "Head of", "Leader", "Manager", "Senior Manager", "Principal", "Group Lead",
         "Department Chair", "Dean", "Provost", "Chancellor", "President", "Superintendent",
         
-        # Specialized Roles
-        "Surgeon", "Chief of Surgery", "Chief Medical Officer", "Lead Attorney", "Managing Partner",
-        "Senior Counsel", "General Counsel", "Chief Architect", "Lead Designer", "Creative Director",
-        "Principal Engineer", "Distinguished Engineer", "Fellow", "Senior Fellow",
+        # Government Agencies and Roles
+        "Department of Defense", "DoD", "Department of Energy", "DOE", "Department of State", "DOS",
+        "Department of Justice", "DOJ", "Department of Homeland Security", "DHS",
+        "National Security Agency", "NSA", "Central Intelligence Agency", "CIA",
+        "Federal Bureau of Investigation", "FBI", "National Institutes of Health", "NIH",
+        "Centers for Disease Control", "CDC", "Food and Drug Administration", "FDA",
+        "Environmental Protection Agency", "EPA", "National Aeronautics and Space Administration", "NASA",
+        "Federal Reserve", "Treasury Department", "State Department", "Defense Department",
+        "Secretary", "Deputy Secretary", "Under Secretary", "Assistant Secretary",
+        "Administrator", "Commissioner", "Director General", "Diplomat", "Foreign Service Officer",
+        "Civil Servant", "Public Servant", "Policy Advisor", "Policy Analyst",
         
-        # Industry-Specific
-        "Portfolio Manager", "Fund Manager", "Investment Banker", "Private Equity", "Venture Capital",
-        "Executive Chef", "Artistic Director", "Music Director", "Film Director", "Producer",
-        "Editor-in-Chief", "Bureau Chief", "Foreign Correspondent", "Senior Correspondent"
+        # Military Branches and Roles
+        "U.S. Army", "U.S. Navy", "U.S. Air Force", "U.S. Marine Corps", "U.S. Coast Guard",
+        "Space Force", "National Guard", "Reserves", "Armed Forces", "Department of Defense",
+        "General", "Admiral", "Colonel", "Major", "Captain", "Lieutenant", "Commander",
+        "Sergeant", "Officer", "Enlisted", "Veteran", "Military Intelligence", "Special Forces",
+        "Combat", "Deployment", "Operation", "Mission", "Strategic Command", "Tactical Operations",
+        
+        # STEM Organizations and Roles
+        "NASA", "DARPA", "National Science Foundation", "NSF", "National Laboratories",
+        "Los Alamos", "Lawrence Livermore", "Oak Ridge", "Sandia", "Argonne", "Brookhaven",
+        "CERN", "Max Planck Institute", "MIT Lincoln Laboratory", "Johns Hopkins Applied Physics Laboratory",
+        "Scientist", "Engineer", "Researcher", "Developer", "Programmer", "Technologist",
+        "Mathematician", "Statistician", "Data Scientist", "Machine Learning Engineer",
+        "AI Researcher", "Computational Biologist", "Quantum Physicist", "Aerospace Engineer",
+        "Robotics Engineer", "Biotechnologist", "Nanotechnologist", "Systems Architect",
+        "Principal Investigator", "Research Director", "Lab Director", "Chief Engineer",
+        "Technical Fellow", "Distinguished Engineer", "Technical Lead", "R&D Manager"
     ],
     
     "High_remuneration": [
