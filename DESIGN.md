@@ -180,28 +180,31 @@ The system identifies critical employment positions using:
 
 1. **Job Entry Detection**: Extracts job entries from the CV
 2. **Keyword Matching**: Matches against extensive lists of:
-   - Technology Companies
+   - Technology Companies (Google, Microsoft, Apple, etc.)
+   - Tech-related Terms (AI, Tech, Technologies, Labs, Research)
    - Executive Roles
    - Leadership Roles
    - Government Agencies and Roles
    - Military Branches and Roles
    - STEM Organizations and Roles
-3. **Education Filtering**: Filters out education items to avoid false positives
-
-This is still a bit buggy. 
+3. **Company Name Extraction**: Identifies company names from job entries
+4. **Comprehensive Evidence Creation**: Combines job titles with company names (e.g., "Senior AI Researcher at TechVision AI")
+5. **Education Filtering**: Filters out education items to avoid false positives
+6. **Fallback Mechanisms**: If structured extraction fails, uses alternative methods to identify critical employment
 
 ### High Remuneration
 
 The system identifies high remuneration using:
 
-1. **Salary Extraction**: Directly extracts salary information from the CV
-2. **Threshold-Based Confidence**:
+1. **Dedicated Section Detection**: Prioritizes information from dedicated compensation/salary sections
+2. **Pattern Recognition**: Uses multiple regex patterns to identify salary information in various formats
+3. **Total Compensation Handling**: Recognizes and properly values total compensation packages that include base salary, bonuses, and equity
+4. **Threshold-Based Confidence**:
    - Low: Less than $150,000
    - Medium: $150,000 to $350,000
    - High: More than $350,000
-3. **Pattern Recognition**: Identifies salary patterns with or without specific amounts
-
-This is still a bit buggy.
+5. **Context-Based Inference**: When exact amounts aren't available, infers compensation level from contextual clues
+6. **Exclusion Filtering**: Avoids false positives by filtering out non-compensation financial mentions
 
 ### Multilingual Processing
 

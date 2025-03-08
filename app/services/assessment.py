@@ -373,7 +373,7 @@ class O1AAssessmentService:
         salary_level = "low"
         
         # Look for salary/compensation section
-        compensation_section = self._extract_section(cv_text, ["SALARY", "COMPENSATION", "REMUNERATION", "COMPENSATION", "INCOME"])
+        compensation_section = self._extract_section(cv_text, ["SALARY", "COMPENSATION", "REMUNERATION", "INCOME"])
         
         # Regular expressions to find salary information
         salary_patterns = [
@@ -381,28 +381,44 @@ class O1AAssessmentService:
             r'(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:thousand|k|K)',  # 100,000 or 100k
             r'(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:million|M|m)',  # 1,000,000 or 1M
             r'annual\s+(?:salary|compensation|income)(?:\s+of)?\s+\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)',  # annual salary of $100,000
-            r'(?:salary|compensation|income)(?:\s+of)?\s+\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)',  # salary of $100,000
+            r'(?:salary|compensation|income|package)(?:\s+of)?\s+\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)',  # salary of $100,000
             r'(?:earn|earning|earned|makes|made)\s+\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)',  # earning $100,000
-            r'(?:package|total|compensation)\s+(?:of|worth|valued)?\s+\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)'  # package worth $100,000
+            r'(?:package|total|compensation)\s+(?:of|worth|valued)?\s+\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)',  # package worth $100,000
+            r'(?:current|previous)(?:\s+annual)?\s+(?:salary|compensation|income|package)(?:\s+at\s+[\w\s]+)?\s*:\s*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)',  # Current annual compensation at Company: $100,000
+            r'(?:current|previous)(?:\s+annual)?\s+(?:salary|compensation|income|package)(?:\s+at\s+[\w\s]+)?\s*\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)'  # Current annual compensation at Company $100,000
         ]
         
         # First check the compensation section if available
         if compensation_section:
             lines = compensation_section.split('\n')
             for line in lines:
-                if any(keyword in line.lower() for keyword in ["salary", "compensation", "remuneration", "income", "earning", "package", "$"]):
-                    salary_evidence.append(line.strip())
+                line = line.strip()
+                if line:  # Add any non-empty line from the compensation section
+                    salary_evidence.append(line)
         
         # If no compensation section or no evidence found, check the entire CV
         if not salary_evidence:
             lines = cv_text.split('\n')
             for line in lines:
-                if any(keyword in line.lower() for keyword in ["salary", "compensation", "remuneration", "income", "earning", "package", "$"]):
-                    salary_evidence.append(line.strip())
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                line_lower = line.lower()
+                # Check for salary keywords
+                if any(keyword in line_lower for keyword in ["salary", "compensation", "remuneration", "income", "earning", "package", "$", "annual", "pay", "wage"]):
+                    # Make sure it's not just mentioning money in a different context
+                    if not any(exclude in line_lower for exclude in ["grant", "funding", "budget", "revenue", "sales", "cost", "expense", "investment"]):
+                        salary_evidence.append(line)
         
         # Determine salary level based on evidence
         highest_amount = 0
         for evidence in salary_evidence:
+            evidence_lower = evidence.lower()
+            
+            # Check for total compensation package mentions
+            is_total_package = any(term in evidence_lower for term in ["total", "package", "compensation package", "base salary + bonus", "base + bonus", "equity"])
+            
             for pattern in salary_patterns:
                 matches = re.findall(pattern, evidence, re.IGNORECASE)
                 for match in matches:
@@ -411,11 +427,15 @@ class O1AAssessmentService:
                     try:
                         amount = float(amount_str)
                         # Adjust for thousands/millions
-                        if 'k' in evidence.lower() or 'thousand' in evidence.lower():
+                        if 'k' in evidence_lower or 'thousand' in evidence_lower:
                             amount *= 1000
-                        elif 'm' in evidence.lower() or 'million' in evidence.lower():
+                        elif 'm' in evidence_lower or 'million' in evidence_lower:
                             amount *= 1000000
                         
+                        # If this is a total package and includes equity/bonus, it's more valuable
+                        if is_total_package:
+                            amount *= 1.2  # Add 20% to reflect total compensation value
+                            
                         highest_amount = max(highest_amount, amount)
                     except ValueError:
                         continue
@@ -432,9 +452,15 @@ class O1AAssessmentService:
         if salary_evidence and highest_amount == 0:
             # Check if there are dollar signs or mentions of high compensation
             for evidence in salary_evidence:
-                if '$' in evidence or any(term in evidence.lower() for term in ['high', 'substantial', 'significant', 'competitive']):
+                evidence_lower = evidence.lower()
+                if '$' in evidence or any(term in evidence_lower for term in ['high', 'substantial', 'significant', 'competitive', 'executive', 'senior', 'director']):
                     salary_level = "medium"
                     break
+                    
+            # Special case: If we have a dedicated compensation section but couldn't extract an amount,
+            # it's likely the person is well-compensated (they wouldn't include a section otherwise)
+            if compensation_section and len(compensation_section.strip()) > 0:
+                salary_level = "medium"
         
         return salary_evidence, salary_level
     
@@ -515,6 +541,11 @@ class O1AAssessmentService:
         employment_section = self._extract_section(cv_text, ["EMPLOYMENT", "EXPERIENCE", "PROFESSIONAL EXPERIENCE", "WORK EXPERIENCE"])
         
         # Define critical employment categories
+        tech_companies = ["google", "microsoft", "apple", "amazon", "facebook", "meta", "ibm", "intel", "oracle", "salesforce", 
+                         "adobe", "twitter", "linkedin", "uber", "airbnb", "netflix", "tesla", "spacex", "nvidia", "amd", 
+                         "qualcomm", "cisco", "hp", "dell", "samsung", "sony", "siemens", "philips", "huawei", "tencent", 
+                         "alibaba", "baidu", "bytedance", "ai", "tech", "technologies", "labs", "research"]
+        
         government_keywords = ["government", "federal", "state", "public service", "civil service", "agency", "department of", "ministry of"]
         military_keywords = ["military", "army", "navy", "air force", "marine", "defense", "defence", "armed forces", "national guard", "coast guard"]
         stem_keywords = ["scientist", "engineer", "researcher", "developer", "programmer", "technologist", "mathematician", "data scientist", 
@@ -560,6 +591,9 @@ class O1AAssessmentService:
                 
                 job_entry_lower = job_entry.lower()
                 
+                # Check for tech companies
+                is_tech_company = any(company in job_entry_lower for company in tech_companies)
+                
                 # Check for STEM positions
                 is_stem = any(keyword in job_entry_lower for keyword in stem_keywords)
                 
@@ -576,14 +610,27 @@ class O1AAssessmentService:
                                     "vp", "ceo", "cto", "cfo", "cio", "cso"])
                 
                 # If this is a critical employment position, add it to the evidence
-                if is_stem or is_government or is_military or is_leadership:
+                if is_tech_company or is_stem or is_government or is_military or is_leadership:
                     # Extract the job title and company if possible
                     lines = job_entry.split('\n')
                     job_title = lines[0].strip() if lines else ""
                     
-                    # Add the job title as evidence
+                    # Try to extract company name
+                    company_name = ""
+                    for line in lines[:3]:  # Check first few lines for company name
+                        if "|" in line:
+                            parts = line.split("|")
+                            if len(parts) > 1:
+                                company_name = parts[0].strip()
+                                break
+                    
+                    # Create a comprehensive evidence entry
                     if job_title and not self._is_section_title(job_title):
-                        critical_evidence.append(job_title)
+                        if company_name:
+                            evidence_entry = f"{job_title} at {company_name}"
+                            critical_evidence.append(evidence_entry)
+                        else:
+                            critical_evidence.append(job_title)
                     
                     # Add key responsibilities or achievements
                     for line in lines[1:]:
@@ -603,8 +650,12 @@ class O1AAssessmentService:
                 
                 line_lower = line.lower()
                 
+                # Check for tech companies
+                if any(company in line_lower for company in tech_companies):
+                    critical_evidence.append(line)
+                
                 # Check for STEM positions
-                if any(keyword in line_lower for keyword in stem_keywords):
+                elif any(keyword in line_lower for keyword in stem_keywords):
                     critical_evidence.append(line)
                 
                 # Check for government positions
@@ -631,6 +682,27 @@ class O1AAssessmentService:
         
         # Filter out section titles
         critical_evidence = [x for x in critical_evidence if not self._is_section_title(x)]
+        
+        # If we still don't have evidence but there are tech companies or STEM keywords in the CV,
+        # extract those lines directly
+        if not critical_evidence:
+            lines = cv_text.split('\n')
+            for i, line in enumerate(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                
+                line_lower = line.lower()
+                
+                # Look for company names with locations
+                if any(company in line_lower for company in tech_companies) and any(loc_indicator in line for loc_indicator in [",", "|"]):
+                    critical_evidence.append(line)
+                
+                # Look for job titles
+                elif any(title in line_lower for title in ["researcher", "scientist", "engineer", "developer", "lead", "senior", "director"]):
+                    # Check if this is a job title line (not a section header)
+                    if not self._is_section_title(line) and not self._is_education_item(line):
+                        critical_evidence.append(line)
         
         return critical_evidence
     
