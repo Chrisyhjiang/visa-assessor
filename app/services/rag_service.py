@@ -1,7 +1,8 @@
 from langchain.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
-from typing import List, Dict, Any
+from langchain.embeddings import HuggingFaceBgeEmbeddings
+from typing import List, Dict, Any, Optional
 import os
 import logging
 import importlib.util
@@ -32,8 +33,14 @@ if sentence_transformers_available:
         logger.error(f"Error importing HuggingFaceBgeEmbeddings: {str(e)}")
         raise ImportError(f"Error importing HuggingFaceBgeEmbeddings: {str(e)}")
 
+# Define constants
+DEFAULT_CHUNK_SIZE = 800
+DEFAULT_CHUNK_OVERLAP = 150
+DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
+KNOWLEDGE_BASE_DIR = "app/knowledge_base"
+
 class RAGService:
-    def __init__(self, knowledge_base_dir: str = "app/knowledge_base"):
+    def __init__(self, knowledge_base_dir: str = KNOWLEDGE_BASE_DIR):
         """
         Initialize the RAG service with BGE embeddings.
         
@@ -44,46 +51,20 @@ class RAGService:
             if not sentence_transformers_available:
                 raise ImportError("sentence_transformers package is required but not available")
             
-            # Initialize text_splitter with smaller chunks for more precise retrieval
+            # Initialize text_splitter
             self.text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=800,  # Smaller chunks for more precise retrieval
-                chunk_overlap=150,
+                chunk_size=DEFAULT_CHUNK_SIZE,
+                chunk_overlap=DEFAULT_CHUNK_OVERLAP,
                 length_function=len,
             )
             
-            # Initialize embeddings with a better model if available
-            model_options = [
-                "BAAI/bge-large-en-v1.5",  # Try larger model first
-                "BAAI/bge-base-en-v1.5",   # Medium model
-                "BAAI/bge-small-en-v1.5",  # Updated small model
-                "BAAI/bge-small-en"        # Original small model as fallback
-            ]
-            
-            model_name = None
-            for option in model_options:
-                try:
-                    logger.info(f"Attempting to load embedding model: {option}")
-                    # Just test if the model can be loaded
-                    from sentence_transformers import SentenceTransformer
-                    _ = SentenceTransformer(option)
-                    model_name = option
-                    logger.info(f"Successfully loaded embedding model: {option}")
-                    break
-                except Exception as e:
-                    logger.warning(f"Failed to load embedding model {option}: {str(e)}")
-            
-            if not model_name:
-                model_name = "BAAI/bge-small-en"  # Default fallback
-                logger.warning(f"Using fallback embedding model: {model_name}")
-            
-            self.embeddings = HuggingFaceBgeEmbeddings(
-                model_name=model_name
-            )
+            # Initialize embeddings model
+            self.embeddings = self._initialize_embeddings()
             
             # Initialize vector store
             self.vector_store = self._initialize_vector_store(knowledge_base_dir)
             
-            # Cache for query results to avoid redundant processing
+            # Cache for query results
             self.query_cache = {}
             
             logger.info("RAG service initialized successfully")
@@ -91,44 +72,36 @@ class RAGService:
             logger.error(f"Error initializing RAG service: {str(e)}", exc_info=True)
             raise RuntimeError(f"Failed to initialize RAG service: {str(e)}")
     
+    def _initialize_embeddings(self) -> HuggingFaceBgeEmbeddings:
+        """Initialize the embedding model with fallback options."""
+        model_options = [
+            "BAAI/bge-large-en-v1.5",
+            "BAAI/bge-base-en-v1.5",
+            "BAAI/bge-small-en-v1.5",
+            "BAAI/bge-small-en"
+        ]
+        
+        for model_name in model_options:
+            try:
+                logger.info(f"Trying to load embedding model: {model_name}")
+                return HuggingFaceBgeEmbeddings(model_name=model_name)
+            except Exception as e:
+                logger.warning(f"Failed to load {model_name}: {str(e)}")
+        
+        # If all models fail, use the default model
+        logger.warning(f"All models failed to load. Using default model: {DEFAULT_MODEL}")
+        return HuggingFaceBgeEmbeddings(model_name=DEFAULT_MODEL)
+    
     def _initialize_vector_store(self, knowledge_base_dir: str) -> FAISS:
-        """
-        Initialize the vector store with knowledge base documents.
-        
-        Args:
-            knowledge_base_dir: Directory containing knowledge base documents
-            
-        Returns:
-            Initialized FAISS vector store
-        """
-        documents = []
-        
-        # Load knowledge base documents
-        for filename in os.listdir(knowledge_base_dir):
-            if filename.endswith(".txt"):
-                file_path = os.path.join(knowledge_base_dir, filename)
-                try:
-                    with open(file_path, "r") as f:
-                        content = f.read()
-                        # Extract criterion name from filename (e.g., "awards.txt" -> "Awards")
-                        criterion = os.path.splitext(filename)[0].capitalize()
-                        
-                        # Add the criterion name to the content for better retrieval
-                        enhanced_content = f"O-1A Visa Criterion: {criterion}\n\n{content}"
-                        
-                        doc = Document(
-                            page_content=enhanced_content,
-                            metadata={"criterion": criterion, "source": file_path}
-                        )
-                        documents.append(doc)
-                        logger.info(f"Loaded knowledge base document: {filename}")
-                except Exception as e:
-                    logger.error(f"Error loading knowledge base document {filename}: {str(e)}")
+        """Initialize the vector store with knowledge base documents."""
+        documents = self._load_knowledge_base_documents(knowledge_base_dir)
         
         if not documents:
             logger.warning(f"No knowledge base documents found in {knowledge_base_dir}")
-            # Create a minimal document to avoid errors
-            documents = [Document(page_content="No knowledge base documents found.", metadata={"criterion": "Unknown"})]
+            documents = [Document(
+                page_content="No knowledge base documents found.", 
+                metadata={"criterion": "Unknown"}
+            )]
         
         # Split documents into chunks
         chunks = self.text_splitter.split_documents(documents)
@@ -136,6 +109,36 @@ class RAGService:
         
         # Create vector store
         return FAISS.from_documents(chunks, self.embeddings)
+    
+    def _load_knowledge_base_documents(self, knowledge_base_dir: str) -> List[Document]:
+        """Load documents from the knowledge base directory."""
+        documents = []
+        
+        try:
+            for filename in os.listdir(knowledge_base_dir):
+                if filename.endswith(".txt"):
+                    file_path = os.path.join(knowledge_base_dir, filename)
+                    try:
+                        with open(file_path, "r") as f:
+                            content = f.read()
+                            # Extract criterion name from filename
+                            criterion = os.path.splitext(filename)[0].capitalize()
+                            
+                            # Add the criterion name to the content
+                            enhanced_content = f"O-1A Visa Criterion: {criterion}\n\n{content}"
+                            
+                            doc = Document(
+                                page_content=enhanced_content,
+                                metadata={"criterion": criterion, "source": file_path}
+                            )
+                            documents.append(doc)
+                            logger.info(f"Loaded knowledge base document: {filename}")
+                    except Exception as e:
+                        logger.error(f"Error loading document {filename}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error accessing knowledge base directory: {str(e)}")
+        
+        return documents
     
     def query_knowledge_base(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
@@ -156,14 +159,12 @@ class RAGService:
         
         # Enhance the query with O-1A context
         enhanced_query = f"O-1A visa qualification: {query}"
-        
-        # Log the query
         logger.info(f"Querying knowledge base with: {enhanced_query}")
         
         # Perform the search
         results = self.vector_store.similarity_search_with_score(enhanced_query, k=top_k)
         
-        # Process and format results
+        # Process results
         processed_results = [
             {
                 "content": doc.page_content,
@@ -191,14 +192,9 @@ class RAGService:
         """
         # Define the O-1A criteria
         criteria = [
-            "Awards", 
-            "Membership", 
-            "Press", 
-            "Judging", 
-            "Original_contribution",
-            "Scholarly_articles", 
-            "Critical_employment", 
-            "High_remuneration"
+            "Awards", "Membership", "Press", "Judging", 
+            "Original_contribution", "Scholarly_articles", 
+            "Critical_employment", "High_remuneration"
         ]
         
         # Split CV into chunks for processing
@@ -212,7 +208,10 @@ class RAGService:
             criterion_results = []
             
             # Query the knowledge base for information about this criterion
-            kb_results = self.query_knowledge_base(f"Detailed explanation of {criterion} criterion for O-1A visa with examples", top_k=2)
+            kb_results = self.query_knowledge_base(
+                f"Detailed explanation of {criterion} criterion for O-1A visa with examples", 
+                top_k=2
+            )
             
             # Use the knowledge base information to find relevant parts in the CV
             for kb_item in kb_results:

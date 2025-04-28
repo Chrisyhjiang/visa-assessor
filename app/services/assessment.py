@@ -6,11 +6,18 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import re
 from app.services.rag_service import RAGService
-from app.services.cv_parser import parse_cv
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Define constants
+DEFAULT_MODEL = "Qwen/Qwen2.5-0.5B"
+FALLBACK_MODEL = "gpt2"
+O1A_CRITERIA = [
+    "Awards", "Membership", "Press", "Judging", 
+    "Original_contribution", "Scholarly_articles", 
+    "Critical_employment", "High_remuneration"
+]
 
 class QualificationRating(str, Enum):
     LOW = "low"
@@ -23,51 +30,30 @@ class CriterionMatch:
         self.evidence = evidence
         self.confidence = confidence
 
-class O1AAssessmentService:
+class LLMProvider:
+    """Provider for LLM services, handles loading and inference."""
+    
     def __init__(self):
-        """Initialize the O-1A assessment service with Qwen model."""
+        """Initialize the LLM provider."""
         try:
-            # Initialize the RAG service
-            logger.info("Initializing RAG service...")
-            self.rag_service = RAGService()
-            
-            # Initialize Qwen2.5 model (smallest version for speed)
-            logger.info("Initializing Qwen2.5-0.5B model...")
-            try:
-                self.model_name = "Qwen/Qwen2.5-0.5B"
-                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    device_map="auto" if torch.cuda.is_available() else None,
-                    trust_remote_code=True
-                )
-                logger.info("Qwen2.5-0.5B model initialized successfully")
-            except Exception as e:
-                # Fallback to a more commonly available model if Qwen fails
-                logger.warning(f"Failed to load Qwen2.5-0.5B model: {str(e)}. Falling back to gpt2.")
-                self.model_name = "gpt2"
-                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    device_map="auto" if torch.cuda.is_available() else None
-                )
-                logger.info("Fallback model initialized successfully")
-            
-            # Set the criteria
-            self.criteria = [
-                "Awards", 
-                "Membership", 
-                "Press", 
-                "Judging", 
-                "Original_contribution",
-                "Scholarly_articles", 
-                "Critical_employment", 
-                "High_remuneration"
-            ]
-            logger.info("O1A Assessment Service initialized successfully")
+            self.model_name = DEFAULT_MODEL
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                device_map="auto" if torch.cuda.is_available() else None,
+                trust_remote_code=True
+            )
+            logger.info(f"{self.model_name} model initialized successfully")
         except Exception as e:
-            logger.error(f"Error initializing O1A Assessment Service: {str(e)}", exc_info=True)
-            raise RuntimeError(f"Failed to initialize O1A Assessment Service: {str(e)}")
+            # Fallback to a more commonly available model if Qwen fails
+            logger.warning(f"Failed to load {self.model_name}: {str(e)}. Falling back to {FALLBACK_MODEL}.")
+            self.model_name = FALLBACK_MODEL
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                device_map="auto" if torch.cuda.is_available() else None
+            )
+            logger.info(f"{self.model_name} model initialized successfully")
     
     def _generate_response(self, prompt: str, max_length: int = 512) -> str:
         """
@@ -167,7 +153,7 @@ class O1AAssessmentService:
         examples = self._get_criterion_examples(criterion)
         
         # Create a list of all criteria for reference
-        all_criteria = ", ".join(self.criteria)
+        all_criteria = ", ".join(O1A_CRITERIA)
         
         # Create a more flexible description of what we're looking for
         criterion_description = self._get_criterion_description(criterion)
@@ -1178,7 +1164,7 @@ class O1AAssessmentService:
                        if result["evidence"] and result["confidence"] > 0.3]
         
         # All criteria not in criteria_met are considered not met
-        criteria_not_met = [criterion for criterion in self.criteria if criterion not in criteria_met]
+        criteria_not_met = [criterion for criterion in O1A_CRITERIA if criterion not in criteria_met]
         
         # Create a summary of evidence for met criteria
         evidence_summary = ""
@@ -1263,7 +1249,7 @@ class O1AAssessmentService:
         criteria_results = {}
         
         # Process each criterion
-        for criterion in self.criteria:
+        for criterion in O1A_CRITERIA:
             # Get criterion information from the knowledge base
             kb_results = self.rag_service.query_knowledge_base(f"Detailed explanation of {criterion} criterion for O-1A visa with examples", top_k=2)
             criterion_info = kb_results[0]["content"] if kb_results else ""
@@ -1327,7 +1313,7 @@ class O1AAssessmentService:
         else:
             cv_text = cv_data
             
-        direct_evidence = {criterion: [] for criterion in self.criteria}
+        direct_evidence = {criterion: [] for criterion in O1A_CRITERIA}
         
         # Extract awards
         direct_evidence["Awards"] = self._extract_awards_directly(cv_text)
@@ -1355,7 +1341,7 @@ class O1AAssessmentService:
         direct_evidence["Scholarly_articles"] = self._extract_scholarly_articles_directly(cv_text)
         
         # Filter out section titles and ensure we have actual evidence
-        for criterion in self.criteria:
+        for criterion in O1A_CRITERIA:
             direct_evidence[criterion] = [item for item in direct_evidence[criterion] if not self._is_section_title(item)]
         
         # Log the extracted evidence for debugging
@@ -2104,5 +2090,5 @@ def assess_o1a_qualification(cv_text: str) -> Dict[str, Any]:
     """
     global _o1a_service_instance
     if _o1a_service_instance is None:
-        _o1a_service_instance = O1AAssessmentService()
+        _o1a_service_instance = LLMProvider()
     return _o1a_service_instance.assess_cv(cv_text) 
