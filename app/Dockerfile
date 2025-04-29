@@ -20,8 +20,11 @@ COPY . .
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
+# Set Python path
+ENV PYTHONPATH=/app
+
 # Expose port
 EXPOSE 8000
 
 # Run the application with reload for development
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 
+CMD ["uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 
