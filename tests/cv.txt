@@ -1,0 +1,92 @@
+MARIA RODRIGUEZ, Ph.D.
+Data Scientist & AI Researcher
+maria.rodriguez@email.com | +1 (555) 123-4567 | San Francisco, CA
+LinkedIn: linkedin.com/in/mariarodriguez | GitHub: github.com/mariarod
+
+SUMMARY
+-----------
+Innovative AI researcher and data scientist with 8+ years of experience developing cutting-edge machine learning solutions. Specializing in natural language processing and computer vision with a proven track record of leading research teams and delivering impactful AI applications in healthcare and finance.
+
+EDUCATION
+-----------
+Ph.D. in Computer Science, Stanford University, 2015
+Dissertation: "Novel Approaches to Transfer Learning in Natural Language Processing"
+Advisor: Prof. James Chen
+
+M.S. in Computer Science, University of California, Berkeley, 2012
+B.S. in Mathematics, Universidad Nacional Autónoma de México (UNAM), 2010
+Graduated with highest honors (Summa Cum Laude)
+
+PROFESSIONAL EXPERIENCE
+-----------
+SENIOR AI RESEARCHER
+TechVision AI, San Francisco, CA | 2019 - Present
+- Lead a team of 12 researchers and engineers developing state-of-the-art NLP models
+- Pioneered a novel approach to few-shot learning that reduced training data requirements by 60%
+- Designed and implemented an AI system for medical image analysis that achieved 94% accuracy in early cancer detection
+- Secured $2.5M in research funding through competitive grants and industry partnerships
+- Mentored junior researchers and Ph.D. interns, with 3 mentees winning best paper awards at top conferences
+
+RESEARCH SCIENTIST
+Google AI, Mountain View, CA | 2015 - 2019
+- Core contributor to Google's BERT language model, focusing on multilingual capabilities
+- Developed optimization techniques that improved inference speed by 35% while maintaining accuracy
+- Published 7 papers at top-tier conferences (NeurIPS, ICML, ACL) with over 2,000 citations
+- Collaborated with product teams to integrate research innovations into Google Translate and Search
+- Received Google Spotlight Award for exceptional contributions to the BERT project
+
+RESEARCH INTERN
+Microsoft Research, Redmond, WA | Summer 2014
+- Developed novel algorithms for efficient training of deep neural networks on distributed systems
+- Research resulted in a patent and a paper published at ICML 2015
+
+AWARDS & HONORS
+-----------
+- ACM Distinguished Researcher Award, 2022
+- Forbes 30 Under 30 in Science, 2018
+- Best Paper Award, NeurIPS, 2017
+- Google Spotlight Award, 2016
+- Stanford Graduate Fellowship, 2012-2015
+- National Science Foundation (NSF) Graduate Research Fellowship, 2012-2015
+- Gold Medal, International Mathematics Olympiad, 2009
+
+PUBLICATIONS & PATENTS
+-----------
+Selected Publications (out of 23 total):
+1. Rodriguez, M., et al. "Efficient Few-Shot Learning for Medical Image Analysis." Nature Machine Intelligence, 2022.
+2. Rodriguez, M., et al. "Multilingual Capabilities in Large Language Models." Proceedings of ACL, 2021.
+3. Rodriguez, M., et al. "OptimizaMARIAtion Techniques for Transformer Models." NeurIPS, 2019.
+4. Rodriguez, M., Chen, J. "Transfer Learning Approaches for NLP." ICML, 2017. (Best Paper Award)
+
+Patents:
+1. "Method and System for Distributed Training of Neural Networks," US Patent 10,789,345, 2019
+2. "Efficient Inference System for Language Models," US Patent Application 16/234,567, 2021
+
+PROFESSIONAL MEMBERSHIPS & SERVICE
+-----------
+- Senior Member, Association for Computing Machinery (ACM)
+- Member, American Association for Artificial Intelligence (AAAI)
+- Program Committee Member, NeurIPS (2018-present)
+- Associate Editor, Journal of Machine Learning Research (2020-present)
+- Reviewer, IEEE Transactions on Pattern Analysis and Machine Intelligence
+- Board Member, Women in Machine Learning (WiML)
+
+INVITED TALKS & MEDIA
+-----------
+- Keynote Speaker, International Conference on Machine Learning (ICML), 2022
+- Invited Speaker, World Economic Forum, Davos, 2021
+- Featured in MIT Technology Review, "35 Innovators Under 35," 2020
+- TED Talk: "The Future of AI in Healthcare," 2019 (over 2 million views)
+- Panelist, Stanford AI Summit, 2018, 2020, 2022
+
+SKILLS
+-----------
+- Programming Languages: Python, C++, Julia, R
+- ML Frameworks: PyTorch, TensorFlow, JAX, Scikit-learn
+- Cloud Platforms: AWS, Google Cloud, Azure
+- Languages: English (fluent), Spanish (native), French (intermediate)
+
+COMPENSATION
+-----------
+Current annual compensation package at TechVision AI: $385,000 (base salary + bonus + equity)
+Previous compensation at Google (2018): $310,000 

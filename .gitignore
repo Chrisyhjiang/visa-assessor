@@ -48,7 +48,7 @@ logs/
 # Environment variables
 .env
 .env.local
-
+node_modules/
 # Jupyter Notebook
 .ipynb_checkpoints
 

@@ -1,0 +1,47 @@
+DR. ELENA GARCIA
+Cybersecurity Researcher | Ethical Hacker | AI Security Consultant
+📧 elena.garcia@email.com | 📍 London, UK
+📌 LinkedIn: linkedin.com/in/elenagarcia | 🌐 GitHub: github.com/egarcia
+
+SUMMARY
+Renowned cybersecurity expert with 12+ years of experience in ethical hacking, AI security, and advanced threat analysis. Published researcher and keynote speaker in cybersecurity conferences.
+
+EDUCATION
+- Ph.D. in Cybersecurity, University of Cambridge, 2015
+- M.S. in Computer Science, ETH Zurich, 2011
+- B.S. in Information Security, University of Madrid, 2009
+
+PROFESSIONAL EXPERIENCE
+Lead Cybersecurity Researcher, Microsoft AI Security, London, UK | 2018 - Present
+- Led the development of AI-driven cyber defense systems used by Fortune 500 companies.
+- Published over 20 research papers on AI security and adversarial machine learning.
+- Mentored junior cybersecurity researchers, with 5 mentees winning awards at Black Hat.
+
+Cybersecurity Consultant, European Cyber Defense Agency | 2015 - 2018
+- Served as a judge for EU cybersecurity grant applications.
+- Designed cyber defense strategies for European governments.
+
+AWARDS & HONORS
+- Black Hat Best Research Paper Award, 2020
+- ACM Senior Member, 2019
+- National Cybersecurity Award, UK, 2018
+
+PRESS & MEDIA
+- Interviewed on BBC News about ethical hacking and AI security threats.
+- Guest speaker at DEF CON, 2022.
+
+MEMBERSHIPS & SERVICE
+- Senior Member, IEEE & ACM
+- Board Member, Women in Cybersecurity (WiCYS)
+- Associate Editor, Journal of Cyber Threat Intelligence
+
+PATENTS & CONTRIBUTIONS
+- "AI-Powered Malware Detection System" (US Patent 12,456,789, 2022)
+- Developed a cybersecurity framework for AI-based threat modeling.
+
+SCHOLARLY ARTICLES
+- "Adversarial Attacks in NLP Models" (NeurIPS 2021)
+- "AI-Based Cyber Threat Intelligence" (IEEE Transactions on Security, 2020)
+
+COMPENSATION
+- Current total compensation: $600,000 (salary + bonuses + stock options)

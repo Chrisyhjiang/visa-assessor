@@ -38,7 +38,7 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
-
+node_modules/
 # Application specific
 data/
 *.log
