@@ -70,6 +70,13 @@ pip install -r requirements.txt
 python -m uvicorn app.app:app --reload
 ```
 
+### Docker Development
+
+```bash
+cd app
+docker compose up --build -d
+```
+
 ## License
 
 MIT License
