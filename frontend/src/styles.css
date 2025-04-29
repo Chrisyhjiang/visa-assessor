@@ -46,7 +46,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url("/backdrop.svg");
+  background-image: url("./backdrop.svg");
   background-size: cover;
   background-position: center bottom;
   z-index: -1;
@@ -71,9 +71,12 @@ body {
   background-color: var(--card-bg);
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
-  padding: 2rem;
+  padding: 2.5rem 2.5rem 2rem 2.5rem;
   margin: -4rem 2rem 2rem;
   position: relative;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .upload-section {
@@ -81,11 +84,32 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 2.5rem;
   border: 2px dashed var(--primary-light);
   border-radius: var(--border-radius);
   background-color: rgba(187, 222, 251, 0.2);
   transition: var(--transition);
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.upload-section form {
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.upload-section .button-row {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+  width: 100%;
 }
 
 .upload-section:hover {
@@ -106,7 +130,7 @@ body {
 .file-input-wrapper {
   position: relative;
   display: inline-block;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .file-input {
@@ -120,7 +144,9 @@ body {
 }
 
 .file-input-label {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.75rem 1.5rem;
   background-color: var(--primary-color);
   color: white;
@@ -129,6 +155,7 @@ body {
   transition: var(--transition);
   text-align: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-width: 160px;
 }
 
 .file-input-label:hover {
@@ -142,12 +169,17 @@ body {
   font-size: 0.9rem;
   color: var(--light-text);
   background-color: rgba(0, 0, 0, 0.05);
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
   border-radius: 4px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 450px;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-bottom: 0.5rem;
 }
 
 .button {
@@ -164,7 +196,11 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  min-width: 180px;
+  min-width: 160px;
+}
+
+.button + .button {
+  margin-left: 1rem;
 }
 
 .button:disabled {
@@ -195,7 +231,7 @@ body {
 }
 
 .results-section {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
 }
 
 .results-header {
@@ -215,9 +251,9 @@ body {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
 }
 
 .summary-card {
@@ -392,12 +428,15 @@ body {
   }
 
   .card {
-    padding: 1.5rem;
-    margin: -3rem 1rem 1rem;
+    padding: 1.2rem;
   }
 
   .summary-grid {
-    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .upload-section {
+    padding: 1rem;
   }
 }
 
@@ -413,6 +452,20 @@ body {
 
   .score-badge {
     margin-top: 0.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .upload-section .button-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .file-input-label,
+  .button {
+    width: 100%;
+    max-width: 250px;
   }
 }
 
@@ -438,4 +491,57 @@ body {
   padding: 1.5rem;
   color: var(--light-text);
   font-size: 0.9rem;
+}
+
+/* Mock agent styling */
+.mock-agent-response {
+  background-color: rgba(245, 247, 250, 0.8);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  border-left: 4px solid var(--primary-color);
+}
+
+.agent-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.agent-avatar {
+  font-size: 1.5rem;
+  margin-right: 0.75rem;
+}
+
+.agent-name {
+  font-weight: 600;
+  color: var(--primary-dark);
+}
+
+.mock-agent-response p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.mock-agent-response ul {
+  padding-left: 1.5rem;
+}
+
+.mock-agent-response li {
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.agent-review {
+  background-color: rgba(230, 240, 255, 0.5);
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+  font-style: italic;
+  color: var(--primary-dark);
+}
+
+.agent-tag {
+  font-weight: 600;
+  font-style: normal;
+  color: var(--primary-color);
 }

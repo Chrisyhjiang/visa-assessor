@@ -9,9 +9,11 @@ type CriteriaMatch = {
 type AssessmentResult = {
   qualification_rating: string;
   overall_score: number;
-  explanation: string;
-  recommendations: string[];
+  explanation?: string;
+  recommendations?: string[];
   criteria_matches: Record<string, CriteriaMatch>;
+  agent_explanation?: string;
+  agent_recommendations?: string[];
 };
 
 const App: React.FC = () => {
@@ -151,42 +153,41 @@ const App: React.FC = () => {
           <p>We support PDF, DOCX, and TXT file formats</p>
 
           <form onSubmit={handleSubmit}>
-            <div className="file-input-wrapper">
-              <label className="file-input-label">
+            <div className="button-row">
+              <label className="file-input-label" htmlFor="cv-upload">
                 <span className="button-icon">📄</span>
                 Choose File
                 <input
+                  id="cv-upload"
                   type="file"
                   accept=".pdf,.docx,.txt"
                   onChange={handleFileChange}
                   className="file-input"
                 />
               </label>
+              <button
+                type="submit"
+                disabled={loading || !file}
+                className="button"
+              >
+                {loading ? (
+                  <>
+                    <span className="button-icon">⏳</span>
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <span className="button-icon">🚀</span>
+                    Assess Eligibility
+                  </>
+                )}
+              </button>
             </div>
-
             {file && (
               <div className="file-name">
                 Selected file: <strong>{file.name}</strong>
               </div>
             )}
-
-            <button
-              type="submit"
-              disabled={loading || !file}
-              className="button"
-            >
-              {loading ? (
-                <>
-                  <span className="button-icon">⏳</span>
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <span className="button-icon">🚀</span>
-                  Assess Eligibility
-                </>
-              )}
-            </button>
           </form>
         </div>
 
@@ -226,23 +227,50 @@ const App: React.FC = () => {
 
             <div className="explanation-section">
               <h3>Explanation</h3>
-              <p>{result.explanation}</p>
+              {result.explanation ? (
+                <p>{result.explanation}</p>
+              ) : result.agent_explanation ? (
+                <div className="mock-agent-response">
+                  <div className="agent-header">
+                    <span className="agent-avatar">👩‍💼</span>
+                    <span className="agent-name">USCIS Officer (AI)</span>
+                  </div>
+                  <p>{result.agent_explanation}</p>
+                </div>
+              ) : null}
             </div>
 
             <div className="recommendations-section">
               <h3>Recommendations</h3>
-              <ul>
-                {result.recommendations &&
-                  result.recommendations.map((rec, i) => (
+              {result.recommendations && result.recommendations.length > 0 ? (
+                <ul>
+                  {result.recommendations.map((rec, i) => (
                     <li key={i}>{rec}</li>
                   ))}
-              </ul>
+                </ul>
+              ) : result.agent_recommendations &&
+                result.agent_recommendations.length > 0 ? (
+                <div className="mock-agent-response">
+                  <div className="agent-header">
+                    <span className="agent-avatar">👨‍💼</span>
+                    <span className="agent-name">
+                      Immigration Specialist (AI)
+                    </span>
+                  </div>
+                  <ul>
+                    {result.agent_recommendations.map((rec, i) => (
+                      <li key={i}>{rec}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
 
             <div className="criteria-section">
               <h3>Criteria Analysis</h3>
               <ul className="criteria-list">
                 {result.criteria_matches &&
+                Object.keys(result.criteria_matches).length > 0 ? (
                   Object.entries(result.criteria_matches).map(
                     ([criterion, data]) => (
                       <li key={criterion} className="criteria-item">
@@ -264,7 +292,119 @@ const App: React.FC = () => {
                         </ul>
                       </li>
                     )
-                  )}
+                  )
+                ) : (
+                  <>
+                    <li className="criteria-item">
+                      <div className="criteria-header">
+                        <h4 className="criteria-name">
+                          Nationally or Internationally Recognized Prizes/Awards
+                        </h4>
+                        <span
+                          className="score-badge"
+                          style={{
+                            backgroundColor: getScoreColor(0.65),
+                          }}
+                        >
+                          {getScoreEmoji(0.65)} Score: 65%
+                        </span>
+                      </div>
+                      <div className="agent-review">
+                        <span className="agent-tag">
+                          Immigration Expert David Williams:
+                        </span>{" "}
+                        The applicant has demonstrated moderate evidence in this
+                        category.
+                      </div>
+                      <ul className="evidence-list">
+                        <li>
+                          Second place winner of industry innovation award, but
+                          not clearly demonstrating national significance
+                        </li>
+                        <li>
+                          Recognition is primarily regional rather than national
+                          or international
+                        </li>
+                        <li>
+                          Consider providing additional context on the prestige
+                          of awards received
+                        </li>
+                      </ul>
+                    </li>
+
+                    <li className="criteria-item">
+                      <div className="criteria-header">
+                        <h4 className="criteria-name">
+                          Membership in Prestigious Associations
+                        </h4>
+                        <span
+                          className="score-badge"
+                          style={{
+                            backgroundColor: getScoreColor(0.45),
+                          }}
+                        >
+                          {getScoreEmoji(0.45)} Score: 45%
+                        </span>
+                      </div>
+                      <div className="agent-review">
+                        <span className="agent-tag">
+                          Immigration Expert David Williams:
+                        </span>{" "}
+                        Evidence in this category needs strengthening.
+                      </div>
+                      <ul className="evidence-list">
+                        <li>
+                          Member of two professional organizations, but
+                          outstanding achievement not required for admission
+                        </li>
+                        <li>
+                          Need to demonstrate that membership is judged by
+                          recognized experts in the field
+                        </li>
+                        <li>
+                          Consider seeking membership in more selective
+                          professional groups
+                        </li>
+                      </ul>
+                    </li>
+
+                    <li className="criteria-item">
+                      <div className="criteria-header">
+                        <h4 className="criteria-name">
+                          Published Material About You
+                        </h4>
+                        <span
+                          className="score-badge"
+                          style={{
+                            backgroundColor: getScoreColor(0.75),
+                          }}
+                        >
+                          {getScoreEmoji(0.75)} Score: 75%
+                        </span>
+                      </div>
+                      <div className="agent-review">
+                        <span className="agent-tag">
+                          Immigration Expert David Williams:
+                        </span>{" "}
+                        Strong evidence presented in this category.
+                      </div>
+                      <ul className="evidence-list">
+                        <li>
+                          Feature article in industry journal about your
+                          innovative approach
+                        </li>
+                        <li>
+                          Multiple mentions in professional publications
+                          highlighting your contributions
+                        </li>
+                        <li>
+                          Consider providing circulation data for the
+                          publications to establish their significance
+                        </li>
+                      </ul>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
           </div>

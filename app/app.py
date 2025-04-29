@@ -29,6 +29,10 @@ class AssessmentResponse(BaseModel):
     criteria_matches: Dict[str, CriterionEvidence]
     qualification_rating: str
     overall_score: float
+    explanation: Optional[str] = None
+    recommendations: Optional[List[str]] = None
+    agent_explanation: Optional[str] = None
+    agent_recommendations: Optional[List[str]] = None
 
 @app.get("/")
 async def root():

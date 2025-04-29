@@ -111,6 +111,26 @@ class VisaAssessor:
                         }
                     result['criteria_matches'] = criteria_dict
                 
+                # Add agent_explanation and agent_recommendations using OpenAI
+                evidence_text = "\n".join(
+                    f"- {item}" for match in result["criteria_matches"].values() for item in match["evidence"]
+                )
+                agent_prompt = f"You are a USCIS visa officer. Given the following evidence from an O-1A visa assessment applicant's CV, write a professional, friendly explanation of their strengths and weaknesses, and provide 3-5 actionable recommendations for improvement.\n\nEvidence:\n{evidence_text}\n\nRespond in JSON with keys 'agent_explanation' and 'agent_recommendations' (a list)."
+                agent_response = self.client.chat.completions.create(
+                    model="gpt-4.1-nano",
+                    messages=[
+                        {"role": "system", "content": "You are an expert in O-1A visa assessment. Respond in the exact JSON format specified."},
+                        {"role": "user", "content": agent_prompt}
+                    ],
+                    temperature=0.4
+                )
+                try:
+                    agent_json = json.loads(agent_response.choices[0].message.content)
+                    result["agent_explanation"] = agent_json.get("agent_explanation", "")
+                    result["agent_recommendations"] = agent_json.get("agent_recommendations", [])
+                except Exception:
+                    result["agent_explanation"] = "(Agent response unavailable)"
+                    result["agent_recommendations"] = []
                 return result
             except json.JSONDecodeError:
                 # If JSON parsing fails, return a structured error
