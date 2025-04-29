@@ -14,9 +14,21 @@ An AI-powered tool that assesses eligibility for O-1A visa applications by analy
 
 ## Tech Stack
 
-- **Frontend**: React with TypeScript
-- **Backend**: FastAPI (Python)
-- **Containerization**: Docker
+- **Frontend**:
+  - React 18 with TypeScript
+  - React Scripts for build tooling
+  - Modern responsive design
+- **Backend**:
+  - FastAPI (Python)
+  - OpenAI integration for AI-powered analysis
+  - Document parsing (PDF, DOCX, TXT) with PyPDF2 and python-docx
+  - Pydantic for data validation
+- **Deployment**:
+  - Docker and Docker Compose for containerization
+  - Uvicorn ASGI server
+- **Development Tools**:
+  - Environment variable management with python-dotenv
+  - TypeScript for type safety
 
 ## Getting Started
 
