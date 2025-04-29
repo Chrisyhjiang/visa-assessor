@@ -1,239 +1,169 @@
-# O-1A Visa Assessment System Design Document
+# O-1A Visa Assessor: Design Document
 
-## Overview
+## System Design Overview
 
-This document explains the design choices made in implementing the O-1A Visa Qualification Assessment API. The system is designed to analyze a person's CV against the 8 criteria for O-1A visa qualification and provide an assessment of their eligibility.
+This document outlines the design choices, architecture, and evaluation methodology for the O-1A Visa Assessor application. The application uses machine learning techniques to analyze CVs and provide an assessment of an individual's qualification for an O-1A visa.
 
-## System Architecture
+## Architecture
 
-The system follows a modular architecture with the following components:
+### 1. Technology Stack
 
-1. **API Layer (FastAPI)**: Handles HTTP requests and responses
-2. **CV Parser**: Extracts text from PDF, DOCX, and TXT files and identifies domain-specific entities
-3. **RAG System**: Provides relevant information about O-1A criteria
-4. **Assessment Service**: Analyzes CVs against criteria and generates assessments
-5. **Knowledge Base**: Contains information about each O-1A criterion
+- **FastAPI**: A modern, high-performance web framework for building APIs
+- **Sentence Transformers**: ML models for encoding text into semantic vectors
+- **PyPDF2/python-docx**: Libraries for text extraction from PDF and DOCX files
+- **Scikit-learn**: For cosine similarity calculation and other ML utilities
+- **NLTK**: For natural language processing tasks like sentence tokenization
 
-## Key Design Decisions
+### 2. Component Overview
 
-### 1. Choice of Embedding Model: BGE Embeddings
+The system is organized into the following primary components:
 
-**Decision**: Use BAAI's BGE embedding models with a fallback mechanism.
+1. **API Layer**: Handles HTTP requests, file uploads, and JSON responses
+2. **Document Processing**: Extracts and preprocesses text from uploaded CV files
+3. **ML-based Criteria Matching**: Uses sentence transformers to match CV content to O-1A criteria
+4. **Scoring and Rating**: Determines qualification ratings based on criteria matches
+5. **Response Formatting**: Structures the assessment results for API responses
 
-**Rationale**:
+### 3. Data Flow
 
-- **Adaptive Selection**: The system attempts to load the largest available model (bge-large-en-v1.5) first, then falls back to smaller models if necessary
-- **Efficiency**: Even the small variant (384 dimensions) is computationally efficient
-- **Performance**: All BGE models perform well on semantic search tasks
-- **Balance**: Provides a good balance between accuracy and speed
-- **Multilingual Support**: Excellent cross-lingual capabilities, supporting over 100 languages with consistent embedding quality
-- **Cross-lingual Retrieval**: Able to match concepts across language boundaries, ideal for international applicants
+1. User uploads CV through the `/assess-visa` endpoint
+2. System validates the file format (PDF, DOCX, TXT)
+3. Text is extracted from the CV and split into sentences
+4. Sentences are encoded into vectors using the sentence transformer model
+5. System computes similarity between CV sentences and pre-defined criteria
+6. Top matching sentences for each criterion are identified
+7. Overall qualification scores and rating are calculated
+8. Structured response with evidence and scores is returned to the user
 
-**Implementation Details**:
+## Machine Learning Approach
 
-- The system tries to load models in this order: bge-large-en-v1.5, bge-base-en-v1.5, bge-small-en-v1.5, bge-small-en
-- Automatic fallback ensures the system works even with limited resources
-- Leverages BGE's multilingual embeddings for knowledge base retrieval regardless of query language
+### 1. Why Sentence Transformers?
 
-### 2. Choice of LLM: Qwen2.5-0.5B
+Traditional keyword or regex-based approaches have significant limitations:
 
-**Decision**: Use Qwen2.5-0.5B as the language model for CV analysis.
+- They can only match exact terms or patterns
+- They miss semantically similar content expressed differently
+- They cannot understand context or meaning
+- They require complex rule systems to handle variations
 
-**Rationale**:
+Our sentence transformer approach addresses these issues by:
 
-- **Size**: At only 0.5B parameters, it's one of the smallest capable LLMs available
-- **Speed**: Provides fast inference, essential for a responsive API
-- **Efficiency**: Low memory requirements (can run on CPU if needed)
-- **Capability**: Despite its small size, it has sufficient reasoning capabilities for CV analysis
-- **Open Source**: Freely available and can be deployed without API costs
-- **Multilingual Excellence**: Exceptional multilingual capabilities, supporting dozens of languages without requiring translation services
+- Capturing semantic meaning rather than just keywords
+- Understanding variations in how criteria might be expressed
+- Providing similarity scores that reflect confidence levels
+- Learning from examples without explicit rules
 
-**Implementation Details**:
+### 2. Model Selection
 
-- The model is loaded once at service initialization to avoid repeated loading costs
-- Fallback to GPT-2 if Qwen2.5-0.5B cannot be loaded
-- Leverages Qwen's multilingual tokenizer to process text in various languages
+We chose the `paraphrase-MiniLM-L6-v2` model because it:
 
-### 3. Direct Evidence Extraction
+- Is optimized for semantic textual similarity tasks
+- Has a reasonable size (80MB) for deployment
+- Provides good performance with limited computational resources
+- Handles a wide range of general topics and domains
+- Has been fine-tuned on paraphrase data, making it good at recognizing semantic equivalence
 
-**Decision**: Implement direct evidence extraction for all criteria before falling back to LLM analysis.
+### 3. Hybrid Matching Strategy
 
-**Rationale**:
+Our system uses two types of reference content for matching:
 
-- **Accuracy**: Direct extraction is more reliable than LLM-based extraction for specific patterns
-- **Efficiency**: Reduces the need for LLM inference when clear evidence is present
-- **Robustness**: Less prone to hallucinations or misinterpretations
-- **Specialization**: Allows for criterion-specific extraction logic
+1. **Criteria Descriptions**: Formal definitions of each O-1A criterion
+2. **Criteria Examples**: Curated examples of statements that would satisfy each criterion
 
-**Implementation Details**:
+This hybrid approach combines:
 
-- Specialized extraction methods for each criterion:
-  - `_extract_awards_directly`: Identifies awards and honors
-  - `_extract_memberships_directly`: Identifies professional memberships
-  - `_extract_press_directly`: Identifies media coverage
-  - `_extract_judging_directly`: Identifies judging activities
-  - `_extract_original_contributions_directly`: Identifies innovations and contributions
-  - `_extract_scholarly_articles_directly`: Identifies publications
-  - `_extract_critical_employment`: Identifies STEM, government, and military positions
-  - `_extract_salary_information`: Identifies salary data with specific thresholds
+- **Description matching**: High-level semantic understanding
+- **Example matching**: More nuanced pattern recognition
 
-### 4. Cross-Industry Support
+We weight example matches higher (70%) than description matches (30%) as they better represent actual criteria patterns.
 
-**Decision**: Expand domain entities and criteria keywords to support all fields of employment.
+### 4. Batch Processing for Scalability
 
-**Rationale**:
+For large documents, we:
 
-- **Inclusivity**: O-1A visas are available to individuals in any field
-- **Accuracy**: Different industries use different terminology for similar achievements
-- **Flexibility**: Allows the system to recognize achievements across diverse backgrounds
+- Process text in batches of 300 sentences
+- Merge and consolidate results
+- Take top-k sentences overall
 
-**Implementation Details**:
+This approach:
 
-- Enhanced domain entities for various industries:
-  - Business
-  - Arts
-  - Medicine
-  - Law
-  - Finance
-  - Technology
-  - Education
-  - Government/Public Service
-- Updated criterion descriptions to be applicable across different fields
-- Expanded examples to cover diverse professions
+- Prevents memory issues with large documents
+- Maintains performance on limited hardware
+- Allows processing arbitrarily large CVs
 
-### 5. Evidence Validation and Confidence Scoring
+## Scoring and Rating Methodology
 
-**Decision**: Implement robust evidence validation and confidence scoring mechanisms.
+### 1. Sentence Matching
 
-**Rationale**:
+For each sentence in the CV:
 
-- **Accuracy**: Ensures only valid evidence contributes to the assessment
-- **Reliability**: Prevents section titles, "N/A" values, and other non-evidence items from being counted
-- **Nuance**: Different criteria may require different confidence thresholds
+1. Compute embedding vector using transformer model
+2. Calculate cosine similarity to criteria descriptions (weighted 30%)
+3. Calculate cosine similarity to criteria examples (weighted 70%)
+4. Combine weighted scores for overall similarity
+5. Apply threshold (0.6) to filter low-confidence matches
+6. Keep top k (5) sentences for each criterion
 
-**Implementation Details**:
+### 2. Criteria Scoring
 
-- Filtering mechanisms to remove invalid evidence:
-  - `_is_section_title`: Detects and filters out section headers
-  - Explicit checks for "N/A" and similar placeholders
-  - Length and content validation for evidence items
-- Specialized confidence scoring:
-  - Salary-based confidence for High Remuneration
-  - Position-based confidence for Critical Employment
-  - Evidence count and quality-based confidence for other criteria
+For each criterion:
 
-### 6. Self-Hosted LLM Instead of OpenAI API
+1. Calculate weighted average of top sentence scores
+2. Scale by number of matches found (more matches = higher confidence)
+3. Produce a final score between 0 and 1
 
-**Decision**: Use a self-hosted Qwen2.5-0.5B model instead of relying on OpenAI API calls.
+### 3. Qualification Rating
 
-**Rationale**:
+Overall qualification is rated as:
 
-- **Cost Efficiency**: Eliminates ongoing API costs, making the system more economical for high-volume usage
-- **Privacy and Data Security**: All CV data is processed locally without sending sensitive information to external APIs
-- **Latency Reduction**: Eliminates network latency associated with API calls, resulting in faster response times
-- **Reliability**: No dependency on external service availability or rate limits
-- **Customization Control**: Complete control over model parameters, inference settings, and potential fine-tuning
-- **Predictable Performance**: Consistent performance without being affected by OpenAI's model updates or changes
-- **Regulatory Compliance**: Easier to comply with data residency requirements in regulated industries
+- **High**: 3+ criteria with scores > 0.7 OR overall score > 0.65
+- **Medium**: 1+ criteria with scores > 0.7 OR 3+ criteria with scores > 0.6 OR overall score > 0.5
+- **Low**: Less than the above
 
-**Implementation Details**:
+This rating system aims to approximate the USCIS requirement of meeting at least 3 of the 8 criteria, while accounting for strength of evidence.
 
-- Local deployment of Qwen2.5-0.5B with optimized inference settings
-- Fallback mechanism to GPT-2 if Qwen model loading fails
-- Direct integration with the assessment pipeline without API middleware
-- Custom prompt engineering optimized for the specific model architecture
+## Evaluation Approach
 
-## Assessment Methodology
+### 1. Qualitative Evaluation
 
-The system follows a comprehensive assessment methodology:
+The system should be evaluated by:
 
-1. **CV Parsing**: Extract text and identify domain-specific entities
-2. **Direct Evidence Extraction**: Extract evidence for each criterion directly from the CV
-3. **LLM-Based Analysis**: For criteria without direct evidence, use the LLM to analyze the CV
-4. **Confidence Scoring**: Assign confidence scores based on the quality and quantity of evidence
-5. **Overall Rating Determination**: Calculate the overall rating based on:
-   - Number of criteria with valid evidence and confidence > 0.3
-   - Average confidence of criteria with evidence
-   - Specific thresholds for HIGH, MEDIUM, and LOW ratings
-6. **Explanation Generation**: Generate a clear explanation of the assessment results
+- Testing with real CV examples from known O-1A applicants
+- Comparing system ratings with actual visa outcomes
+- Expert review of evidence identification
+- User feedback on assessment accuracy
 
-## Performance Considerations
+### 2. Quantitative Metrics
 
-1. **Model Loading**: Models are loaded once at service initialization to avoid repeated loading costs
+Potential metrics include:
 
-2. **Caching**: The RAG service implements caching to avoid redundant processing
+- **Precision**: Accuracy of identified evidence
+- **Recall**: Ability to find all relevant evidence
+- **F1 Score**: Balanced measure of precision and recall
+- **Rating Accuracy**: Percentage of correct qualification ratings
 
-3. **Chunking Strategy**: CV text is split into manageable chunks to:
+### 3. Limitations and Edge Cases
 
-   - Avoid token limits
-   - Focus analysis on relevant sections
-   - Improve processing efficiency
+The system has several known limitations:
 
-4. **Vector Search Optimization**: FAISS is used for efficient similarity search
+- Dependency on CV comprehensiveness and formatting
+- Limited understanding of specialized terminology
+- Inability to verify truthfulness of claims
+- No consideration of supporting documentation beyond the CV
+- No access to actual USCIS evaluation criteria details
 
-5. **Asynchronous Processing**: FastAPI's asynchronous capabilities are leveraged for handling concurrent requests
+## Future Enhancements
 
-## Specialized Criteria Handling
+1. **Model Fine-tuning**: Train on actual successful O-1A applications
+2. **Entity Recognition**: Add specialized NER for identifying awards, organizations, etc.
+3. **Domain Adaptation**: Create separate models for different fields (science, arts, business)
+4. **Structured Data Extraction**: Extract structured information like education, work history
+5. **Recommendation Engine**: Suggest improvements to strengthen applications
+6. **UI Development**: Create user interface for easier interaction and visualization
+7. **Multi-document Analysis**: Process supporting documents beyond the CV
 
-### Critical Employment
+## Conclusion
 
-The system identifies critical employment positions using:
+The ML-based O-1A Visa Assessor provides a more sophisticated approach than traditional keyword matching systems. By using semantic similarity with transformer models, the system can better understand and evaluate the complex criteria for O-1A visa qualification.
 
-1. **Job Entry Detection**: Extracts job entries from the CV
-2. **Keyword Matching**: Matches against extensive lists of:
-   - Technology Companies (Google, Microsoft, Apple, etc.)
-   - Tech-related Terms (AI, Tech, Technologies, Labs, Research)
-   - Executive Roles
-   - Leadership Roles
-   - Government Agencies and Roles
-   - Military Branches and Roles
-   - STEM Organizations and Roles
-3. **Company Name Extraction**: Identifies company names from job entries
-4. **Comprehensive Evidence Creation**: Combines job titles with company names (e.g., "Senior AI Researcher at TechVision AI")
-5. **Education Filtering**: Filters out education items to avoid false positives
-6. **Fallback Mechanisms**: If structured extraction fails, uses alternative methods to identify critical employment
-
-### High Remuneration
-
-The system identifies high remuneration using:
-
-1. **Dedicated Section Detection**: Prioritizes information from dedicated compensation/salary sections
-2. **Pattern Recognition**: Uses multiple regex patterns to identify salary information in various formats
-3. **Total Compensation Handling**: Recognizes and properly values total compensation packages that include base salary, bonuses, and equity
-4. **Threshold-Based Confidence**:
-   - Low: Less than $150,000
-   - Medium: $150,000 to $350,000
-   - High: More than $350,000
-5. **Context-Based Inference**: When exact amounts aren't available, infers compensation level from contextual clues
-6. **Exclusion Filtering**: Avoids false positives by filtering out non-compensation financial mentions
-
-### Multilingual Processing
-
-The system handles CVs in multiple languages through:
-
-1. **Native Language Processing**: Qwen2.5-0.5B processes text in its original language without translation
-2. **Cross-lingual Understanding**: The model can understand concepts across languages (e.g., recognizing "Prix" in French as an award)
-3. **Language Detection**: Automatically detects the CV language to apply appropriate processing
-4. **Multilingual Keyword Recognition**: Domain-specific keywords are recognized across languages
-5. **Consistent Scoring**: Maintains consistent evaluation standards regardless of CV language
-6. **Cross-lingual Knowledge Retrieval**: BGE embeddings match relevant knowledge base entries even when the CV and knowledge base are in different languages
-
-This capability is particularly valuable for O-1A visa applicants, who often come from diverse linguistic backgrounds.
-
-## Limitations and Future Improvements
-
-### Current Limitations
-
-1. **Model Size**: The small Qwen model has limited reasoning capabilities compared to larger models
-2. **Language Support**: Currently optimized for English CVs only
-3. **Document Formats**: Limited to PDF, DOCX, and TXT formats
-4. **No Fine-tuning**: Models are not specifically fine-tuned for O-1A assessment
-
-### Future Improvements
-
-1. **Model Fine-tuning**: Fine-tune the Qwen model on O-1A assessment data
-2. **Expanded Knowledge Base**: Add more detailed information about each criterion
-3. **Multi-modal Support**: Add capability to analyze images and charts in CVs
-4. **User Feedback Loop**: Implement a feedback mechanism to improve assessments
-5. **Multilingual Support**: Add support for CVs in multiple languages
-6. **Web Interface**: Develop a user-friendly web interface
+This design balances technical sophistication with practical deployability, creating a system that provides meaningful preliminary assessments while acknowledging the inherent limitations of automated immigration qualification analysis.

@@ -1,189 +1,165 @@
-# O-1A Visa Qualification Assessment API
+# O-1A Visa Assessor
 
-This API assesses how qualified a person is for an O-1A immigration visa based on their CV. It analyzes the CV against the 8 criteria defined for O-1A visas and provides a qualification rating.
+An ML-based FastAPI application that assesses a person's qualifications for an O-1A immigration visa based on their CV.
 
 ## System Design
 
-The system uses a combination of:
+The O-1A Visa Assessor application employs a machine learning approach to analyze CVs and determine qualification for O-1A visas. The system architecture consists of:
 
-1. **BGE Embeddings for RAG (Retrieval-Augmented Generation)**: To provide relevant context about O-1A visa criteria when analyzing a CV.
-2. **Qwen2.5-0.5B Model**: A small, efficient language model to analyze the CV content against the O-1A criteria and generate the assessment.
+1. **Web API Layer** - FastAPI application that provides RESTful endpoints
+2. **ML Processing Layer** - Sentence transformer models for semantic text analysis
+3. **Document Processing** - Text extraction and processing utilities
+4. **Semantic Matching** - Vector-based similarity matching against O-1A criteria
+5. **Rating System** - ML-based scoring algorithm for visa qualification assessment
 
-### Architecture
+### ML-Based Approach
 
-```
-┌─────────────┐     ┌───────────────┐     ┌─────────────────┐
-│ CV Document │────▶│ CV Parser     │────▶│ Text Content    │
-└─────────────┘     └───────────────┘     └────────┬────────┘
-                                                   │
-                                                   ▼
-                                          ┌────────────────┐
-                                          │ Assessment     │
-                                          │ Service (Qwen) │
-                                          └────────┬───────┘
-                                                   │
-                                                   ▼
-┌─────────────┐     ┌───────────────┐     ┌────────────────┐
-│ Knowledge   │────▶│ RAG Service   │────▶│ Criterion      │
-│ Base        │     │ (BGE)         │     │ Information    │
-└─────────────┘     └───────────────┘     └────────┬───────┘
-                                                   │
-                                                   ▼
-                                          ┌────────────────┐
-                                          │ API Response   │
-                                          └────────────────┘
-```
+Unlike basic regex or keyword matching systems, this application uses:
 
-## Features
+1. **Sentence Transformers** - Pre-trained models that encode sentences into dense vector representations
+2. **Semantic Similarity** - Cosine similarity to measure the semantic relatedness between CV content and O-1A criteria
+3. **Example-Based Learning** - Using curated examples of each criterion to improve matching accuracy
+4. **Weighted Scoring** - More sophisticated scoring that considers both quantity and quality of matches
+5. **Batch Processing** - Efficient handling of large documents through batch processing
 
-- Analyzes CVs in TXT format main, but also DOCX and PDF (untested)
-- Evaluates against all 8 O-1A criteria:
-  - Awards
-  - Membership
-  - Press
-  - Judging
-  - Original contribution
-  - Scholarly articles
-  - Critical employment
-  - High remuneration
-- Provides:
-  - List of evidence for each criterion
-  - Confidence score for each criterion
-  - Overall qualification rating (low, medium, high)
-  - Explanation of the assessment
-- **Multilingual Support**: Capable of analyzing CVs in multiple languages thanks to Qwen2.5-0.5B's and BGE's strong multilingual capabilities
+### Flow
 
-## Key Enhancements
+1. User uploads CV file (PDF, DOCX, or TXT) to the API endpoint
+2. API extracts text from the CV document
+3. Text is split into meaningful sentences
+4. Sentence transformer model converts sentences into vector embeddings
+5. System computes similarity between CV sentences and pre-defined criteria descriptions/examples
+6. Top matching sentences for each criterion are identified based on similarity score
+7. Overall qualification scoring is calculated using weighted criteria matches
+8. Response with criteria matches, evidence, and qualification rating is returned
 
-The system has been enhanced to:
+## O-1A Criteria
 
-1. **Support All Fields of Employment**: The assessment system now recognizes achievements across diverse industries including Business, Arts, Medicine, Law, Finance, Technology, Education, and Government/Public Service.
+The O-1A visa has 8 criteria, and applicants must satisfy at least 3 to qualify:
 
-2. **Direct Evidence Extraction**: The system directly extracts evidence for each criterion from the CV before falling back to LLM analysis, improving accuracy and reducing hallucinations.
+1. **Awards** - Receipt of nationally or internationally recognized prizes/awards for excellence
+2. **Membership** - Membership in associations requiring outstanding achievement
+3. **Press** - Published material about the person in professional publications
+4. **Judging** - Participation as a judge of the work of others in the field
+5. **Original Contribution** - Original scientific, scholarly, or business-related contributions of major significance
+6. **Scholarly Articles** - Authorship of scholarly articles in professional journals or major media
+7. **Critical Employment** - Employment in a critical or essential capacity at distinguished organizations
+8. **High Remuneration** - Command of a high salary or remuneration
 
-3. **Specialized Criteria Handling**:
+## Installation & Setup
 
-   - **Critical Employment**: Identifies STEM, government, military, and leadership positions with specialized keyword matching
-   - **High Remuneration**: Detects salary information with specific thresholds ($150,000 to $350,000 for medium confidence, >$350,000 for high confidence)
+1. Clone the repository:
 
-4. **Improved Evidence Validation**: Filters out section titles, "N/A" values, and other non-evidence items to ensure only valid evidence is considered.
+   ```
+   git clone https://github.com/yourusername/visa-assessor.git
+   cd visa-assessor
+   ```
 
-5. **Enhanced Confidence Scoring**: Calculates confidence scores based on the quality and quantity of evidence found for each criterion.
+2. Create a virtual environment:
 
-## Technical Implementation
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-- **FastAPI**: For the API framework
-- **BGE Embeddings**: For semantic search in the knowledge base
-- **Qwen2.5-0.5B**: For CV analysis and assessment generation
-- **FAISS**: For efficient vector storage and retrieval
-- **LangChain**: For RAG implementation
+3. Install dependencies:
 
-## API Endpoints
+   ```
+   pip install -r requirements.txt
+   ```
 
-### POST /assess-cv
+4. Run the application:
 
-Assesses a CV for O-1A visa qualification.
+   ```
+   python main.py
+   ```
 
-**Request**:
+5. Access the API at http://localhost:8000/docs
 
-- Form data with a file upload (PDF, DOCX, or TXT)
+## API Usage
 
-**Response**:
+### Endpoint: POST /assess-visa
+
+Upload a CV file and get an assessment for O-1A visa qualification.
+
+**Request:**
+
+- Form data with file upload field "cv_file"
+
+**Response:**
 
 ```json
 {
   "criteria_matches": {
-    "Awards": {
-      "criterion": "Awards",
-      "evidence": ["Award 1", "Award 2"],
-      "confidence": 0.85
+    "awards": {
+      "score": 0.85,
+      "evidence": ["List of matching sentences from CV"]
     },
-    "Membership": {
-      "criterion": "Membership",
-      "evidence": ["Membership 1"],
-      "confidence": 0.75
+    "membership": {
+      "score": 0.72,
+      "evidence": ["List of matching sentences from CV"]
     },
     ...
   },
-  "overall_rating": "medium",
-  "explanation": "The applicant meets 4 out of 8 criteria with moderate confidence..."
+  "qualification_rating": "high",
+  "overall_score": 0.76
 }
 ```
 
-### GET /health
+## Design Choices & Evaluation Methodology
 
-Health check endpoint.
+### 1. Sentence Transformer Selection
 
-**Response**:
+We chose the `paraphrase-MiniLM-L6-v2` model for its balance of performance and efficiency. This model:
 
-```json
-{
-  "status": "healthy"
-}
-```
+- Is trained specifically for semantic similarity tasks
+- Performs well with limited computational resources
+- Has a reasonable size for deployment scenarios
+- Provides good similarity detection across various domains
 
-## Setup and Installation
+### 2. Hybrid Matching Strategy
 
-1. Clone the repository
-2. Create a virtual environment via the following steps:
-   - Create virtual environment: `python -m venv venv`
-   - Activate virtual environment:
-     - Windows: `venv\Scripts\activate`
-     - Unix/MacOS: `source venv/bin/activate`
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-4. Run the application:
-   ```
-   python run.py
-   ```
-   or
-   ```
-   uvicorn app.main:app --reload
-   ```
+The system uses both criteria descriptions and examples:
 
-### Hardware Requirements
+- **Description Matching** - Ensures basic understanding of the criteria
+- **Example Matching** - Provides more nuanced matching by showing the model what good matches look like
+- **Weighted Combination** - Examples are weighted higher (70%) than descriptions (30%) as they better represent actual criteria
 
-**For optimal performance speed, run this application on a machine with an NVIDIA A100 GPU.**
+### 3. Batch Processing for Large Documents
 
-While the application can run on CPU or other GPUs, an A100 GPU will provide the fastest processing times for both the embedding generation and LLM inference steps. The Qwen2.5-0.5B model and BGE embeddings are optimized for GPU acceleration.
+For CVs with many sentences:
 
-## Design Choices
+- Text is processed in batches of 300 sentences
+- Results are merged and rescored
+- This allows handling of arbitrarily large documents without memory issues
 
-### Why BGE Embeddings for RAG?
+### 4. Scoring Methodology
 
-BGE (BAAI General Embeddings) models are efficient and perform well for semantic search. The system tries to use the largest available BGE model, falling back to smaller versions if necessary, providing a good balance between performance and speed.
+The scoring system employs:
 
-BGE models also offer strong multilingual capabilities, supporting over 100 languages with consistent performance across language boundaries. This makes them ideal for processing international CVs without requiring translation.
+- **Threshold-Based Filtering** - Only sentences with similarity above 0.6 are considered
+- **Top-K Selection** - Limited to top 5 sentences per criterion to focus on strongest evidence
+- **Weighted Scoring** - Higher similarity matches receive greater weight
+- **Scaling by Evidence Count** - Scores are scaled by the number of pieces of evidence found
 
-### Why Qwen2.5-0.5B?
+### 5. Qualification Rating Logic
 
-Qwen2.5-0.5B is one of the smallest yet capable language models available. It provides:
+- **High Rating**: 3+ criteria with scores > 0.7 OR overall score > 0.65
+- **Medium Rating**: 1+ criteria with scores > 0.7 OR 3+ criteria with scores > 0.6 OR overall score > 0.5
+- **Low Rating**: Less than 2 criteria with sufficient evidence
 
-- Fast inference speed
-- Low memory requirements
-- Sufficient reasoning capabilities for CV analysis
-- Good performance on text analysis tasks
-- **Strong multilingual capabilities**: Supports analysis of CVs in multiple languages including English, Spanish, French, German, Chinese, and many others without requiring translation
+## Limitations
 
-This makes it ideal for a responsive API that needs to analyze documents efficiently.
-
-**Please checkout DESIGN.md for more information on the Design chocies of this project"**
-
-## Evaluation
-
-The system's assessment quality can be evaluated by:
-
-1. **Accuracy**: Compare the system's assessments with expert immigration consultants' assessments
-2. **Consistency**: Check if similar CVs receive similar ratings
-3. **Evidence Quality**: Evaluate if the evidence identified is relevant to each criterion
-4. **Explanation Quality**: Assess if the explanations are clear and helpful
+1. The assessment is preliminary and not a substitute for legal advice
+2. Text extraction may not capture all information from complex CV formats
+3. The pre-trained embedding model may not perfectly understand specialized domain vocabulary
+4. The system cannot verify the truthfulness of claims in the CV
+5. Performance depends on the quality and comprehensiveness of the CV
 
 ## Future Improvements
 
-- Fine-tune the Qwen model on O-1A visa assessment data
-- Add more detailed criteria explanations to the knowledge base
-- Implement user feedback mechanism to improve the system
-- Add support for more document formats
-- Develop a web interface for easier interaction
+1. Fine-tune embedding models on actual O-1A application data
+2. Implement more sophisticated document structure analysis
+3. Add entity recognition to better identify organizations, awards, etc.
+4. Include counterfactual explanations to help improve applications
+5. Extend with a UI for easier interaction and visualization of results
