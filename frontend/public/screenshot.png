@@ -1,0 +1,6 @@
+This is a binary file and cannot be edited directly through text. Instead, you would need to:
+
+1. Create a screenshot of the application when it's running
+2. Save it as "screenshot.png" in the frontend/public directory
+
+For now, I recommend using the frontend/public/favicon.svg as a temporary icon or taking a screenshot of the application once you've built and run it. 
