@@ -1,3 +1,17 @@
+"""
+O-1A Visa Assessor API
+
+This is the main FastAPI application that provides endpoints for assessing O-1A visa qualifications
+based on CV analysis. The application uses OpenAI's GPT models to analyze uploaded CVs and provide
+detailed assessments of how well the applicant meets O-1A visa criteria.
+
+Key Features:
+- CV upload and processing (PDF, DOCX, TXT formats)
+- Detailed analysis of O-1A visa criteria matches
+- Qualification rating and scoring
+- Evidence-based recommendations
+"""
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +26,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
+# Add CORS middleware to allow cross-origin requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
@@ -22,10 +36,29 @@ app.add_middleware(
 )
 
 class CriterionEvidence(BaseModel):
+    """
+    Pydantic model for storing evidence for a specific O-1A criterion.
+    
+    Attributes:
+        score (float): Confidence score for the criterion match (0-1)
+        evidence (List[str]): List of text excerpts from CV supporting the criterion
+    """
     score: float
     evidence: List[str]
 
 class AssessmentResponse(BaseModel):
+    """
+    Pydantic model for the complete visa assessment response.
+    
+    Attributes:
+        criteria_matches (Dict[str, CriterionEvidence]): Matches for each O-1A criterion
+        qualification_rating (str): Overall rating (high/medium/low)
+        overall_score (float): Aggregate score across all criteria
+        explanation (Optional[str]): Detailed explanation of the assessment
+        recommendations (Optional[List[str]]): Suggested improvements
+        agent_explanation (Optional[str]): USCIS officer-style explanation
+        agent_recommendations (Optional[List[str]]): Officer-style recommendations
+    """
     criteria_matches: Dict[str, CriterionEvidence]
     qualification_rating: str
     overall_score: float
@@ -36,17 +69,27 @@ class AssessmentResponse(BaseModel):
 
 @app.get("/")
 async def root():
+    """
+    Root endpoint that provides basic API information.
+    
+    Returns:
+        dict: Welcome message and link to API documentation
+    """
     return {"message": "Welcome to O-1A Visa Assessor API. Use /docs for API documentation."}
 
 @app.post("/assess-visa", response_model=AssessmentResponse)
 async def assess_visa(cv_file: UploadFile = File(...)):
     """
-    Upload a CV file and get an ML-based assessment for O-1A visa qualification.
+    Endpoint for uploading and assessing a CV for O-1A visa qualification.
+    
+    Args:
+        cv_file (UploadFile): The CV file to be analyzed (PDF, DOCX, or TXT format)
     
     Returns:
-    - criteria_matches: Dictionary of criteria with confidence scores and matching evidence
-    - qualification_rating: Overall qualification rating (low, medium, high)
-    - overall_score: Aggregate score across all criteria
+        AssessmentResponse: Detailed assessment of O-1A visa qualification
+        
+    Raises:
+        HTTPException: If file format is unsupported or processing fails
     """
     
     # Check file type (accept PDF, DOCX, TXT)

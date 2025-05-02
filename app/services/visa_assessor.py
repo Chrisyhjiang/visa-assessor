@@ -1,3 +1,23 @@
+"""
+Visa Assessor Service
+
+This module provides the core functionality for assessing O-1A visa qualifications
+based on CV content. It uses OpenAI's GPT models to analyze the text and determine
+how well the applicant meets each of the O-1A visa criteria.
+
+The assessment considers eight main criteria for O-1A visa qualification:
+1. Awards and recognition
+2. Membership in associations requiring outstanding achievement
+3. Published material about the person
+4. Participation as a judge of others' work
+5. Original contributions of major significance
+6. Authorship of scholarly articles
+7. Critical employment in distinguished organizations
+8. High salary or remuneration
+
+The service provides both quantitative scores and qualitative evidence for each criterion.
+"""
+
 import io
 import re
 from typing import List, Dict
@@ -10,9 +30,24 @@ from app.utils.text_extraction import extract_text
 load_dotenv(override=True)
 
 class VisaAssessor:
-    """Service to assess O-1A visa qualification based on CV"""
+    """
+    Service to assess O-1A visa qualification based on CV content.
+    
+    This class handles the interaction with OpenAI's API to analyze CV content
+    and determine qualification for O-1A visa criteria. It provides both
+    numerical scores and textual evidence for each criterion.
+    
+    Attributes:
+        client (OpenAI): OpenAI API client instance
+    """
     
     def __init__(self):
+        """
+        Initialize the VisaAssessor with OpenAI API credentials.
+        
+        Raises:
+            ValueError: If OPENAI_API_KEY is not found in environment variables
+        """
         # Debug: Print all possible places where OPENAI_API_KEY might be set
         env_file_key = os.getenv("OPENAI_API_KEY")
         env_var_key = os.environ.get("OPENAI_API_KEY")
@@ -31,12 +66,26 @@ class VisaAssessor:
         """
         Assess a CV for O-1A visa qualification using GPT-4.
         
+        This method processes the CV content, extracts relevant information,
+        and uses GPT-4 to analyze how well the applicant meets each O-1A
+        visa criterion.
+        
         Args:
-            cv_content: Raw bytes of the CV file
-            file_extension: File extension (pdf, docx, txt)
+            cv_content (bytes): Raw bytes of the CV file
+            file_extension (str): File extension (pdf, docx, txt)
             
         Returns:
-            Dict containing assessment results
+            Dict: Assessment results containing:
+                - qualification_rating: Overall rating (high/medium/low)
+                - overall_score: Aggregate score (0-1)
+                - criteria_matches: Dict of criterion scores and evidence
+                - explanation: Detailed explanation of assessment
+                - recommendations: List of improvement suggestions
+                - agent_explanation: USCIS officer-style explanation
+                - agent_recommendations: Officer-style recommendations
+                
+        Raises:
+            Exception: If CV processing or assessment fails
         """
         try:
             # Extract text from CV
